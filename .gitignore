@@ -1,0 +1,12 @@
+node_modules/
+build/
+dist/
+coverage/
+.dotnet/
+.vs/
+bin/
+obj/
+.DS_Store
+*.log
+.env*
+!.env.example

@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Saxovat.API/Saxovat.API.csproj" />
+    <Project Path="src/Saxovat.Application/Saxovat.Application.csproj" />
+    <Project Path="src/Saxovat.Domain/Saxovat.Domain.csproj" />
+    <Project Path="src/Saxovat.Infrastructure/Saxovat.Infrastructure.csproj" />
+  </Folder>
+</Solution>
