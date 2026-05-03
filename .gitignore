@@ -4,6 +4,7 @@ dist/
 coverage/
 .dotnet/
 .vs/
+.claude/
 bin/
 obj/
 .DS_Store

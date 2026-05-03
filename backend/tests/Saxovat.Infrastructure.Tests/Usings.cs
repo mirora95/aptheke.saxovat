@@ -1,0 +1,12 @@
+global using System.Net;
+global using System.Net.Http.Json;
+global using System.Text;
+global using FluentAssertions;
+global using Microsoft.EntityFrameworkCore;
+global using Saxovat.Application.Common;
+global using Saxovat.Application.Contracts;
+global using Saxovat.Application.Interfaces;
+global using Saxovat.Domain;
+global using Saxovat.Infrastructure.Persistence;
+global using Saxovat.Infrastructure.Services;
+global using Xunit;

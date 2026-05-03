@@ -70,12 +70,14 @@ public sealed class SaxovatDbContext(DbContextOptions<SaxovatDbContext> options)
             entity.ToTable("medicines");
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => x.SKU).IsUnique();
+            entity.HasIndex(x => x.ExternalId).IsUnique();
             entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
             entity.Property(x => x.GenericName).HasMaxLength(200).IsRequired();
             entity.Property(x => x.BrandName).HasMaxLength(200).IsRequired();
             entity.Property(x => x.Description).HasMaxLength(4000).IsRequired();
             entity.Property(x => x.ShortDescription).HasMaxLength(500).IsRequired();
             entity.Property(x => x.SKU).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.ExternalId).HasMaxLength(100);
             entity.Property(x => x.Manufacturer).HasMaxLength(200).IsRequired();
             entity.Property(x => x.DosageForm).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Strength).HasMaxLength(100).IsRequired();

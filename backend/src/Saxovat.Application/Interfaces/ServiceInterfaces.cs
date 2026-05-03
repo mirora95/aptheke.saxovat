@@ -37,6 +37,11 @@ public interface IMedicineService
     Task<MedicineResponse> UpdateMedicineStatusAsync(string id, UpdateMedicineStatusRequest request, Guid? actorUserId = null, CancellationToken cancellationToken = default);
 }
 
+public interface IOneCImportService
+{
+    Task<OneCImportResult> SyncMedicinesAsync(CancellationToken cancellationToken = default);
+}
+
 public interface IOrderService
 {
     Task<ApiListResponse<OrderResponse>> GetOrdersAsync(GetOrdersQuery query, Guid? currentUserId, UserRole currentRole, CancellationToken cancellationToken = default);

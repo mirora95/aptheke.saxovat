@@ -42,6 +42,7 @@ public class Medicine
     public decimal? DiscountPrice { get; set; }
     public int StockQuantity { get; set; }
     public string SKU { get; set; } = string.Empty;
+    public string? ExternalId { get; set; }
     public string Manufacturer { get; set; } = string.Empty;
     public string DosageForm { get; set; } = string.Empty;
     public string Strength { get; set; } = string.Empty;
@@ -52,6 +53,7 @@ public class Medicine
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastSyncedAt { get; set; }
 
     public Category? Category { get; set; }
 }

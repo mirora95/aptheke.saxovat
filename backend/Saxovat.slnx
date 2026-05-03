@@ -5,4 +5,7 @@
     <Project Path="src/Saxovat.Domain/Saxovat.Domain.csproj" />
     <Project Path="src/Saxovat.Infrastructure/Saxovat.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Saxovat.Infrastructure.Tests/Saxovat.Infrastructure.Tests.csproj" />
+  </Folder>
 </Solution>

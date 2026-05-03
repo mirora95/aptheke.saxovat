@@ -22,6 +22,12 @@ public static class DependencyInjection
         services.AddScoped<AuditLogWriter>();
         services.AddScoped<NotificationService>();
         services.AddScoped<PaymentService>();
+        services.AddHttpClient<IOneCImportService, OneCImportService>(client =>
+        {
+            var baseUrl = configuration["OneC:BaseUrl"]
+                ?? throw new InvalidOperationException("OneC:BaseUrl configuration is required.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ICategoryService, CategoryService>();
