@@ -20,6 +20,12 @@ public static class ClaimsPrincipalExtensions
         return userId;
     }
 
+    public static Guid GetUserId(this ClaimsPrincipal principal)
+    {
+        var claim = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.Parse(claim!);
+    }
+
     public static UserRole GetRequiredRole(this ClaimsPrincipal principal)
     {
         var role = principal.FindFirstValue(ClaimTypes.Role) ?? principal.FindFirstValue("role");

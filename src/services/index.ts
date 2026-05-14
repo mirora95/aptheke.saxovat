@@ -184,9 +184,9 @@ export class ApiAuthService implements IAuthService {
     }
   }
 
-  async refreshToken(_request: RefreshTokenRequest): Promise<RefreshTokenResponse> {
-    throw new ServiceError('UNAUTHORIZED', 'Token refresh is not supported by the current API.', {
-      status: 401,
+  async refreshToken(request: RefreshTokenRequest): Promise<RefreshTokenResponse> {
+    return apiClient.post<RefreshTokenResponse>('/auth/refresh', request, {
+      suppressUnauthorizedEvent: true,
     });
   }
 

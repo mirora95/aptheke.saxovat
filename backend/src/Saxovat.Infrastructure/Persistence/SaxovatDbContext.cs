@@ -38,6 +38,7 @@ public sealed class SaxovatDbContext(DbContextOptions<SaxovatDbContext> options)
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -177,6 +178,18 @@ public sealed class SaxovatDbContext(DbContextOptions<SaxovatDbContext> options)
                 .HasForeignKey(x => x.ActorUserId)
                 .OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(x => x.CreatedAt);
+        });
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.ToTable("refresh_tokens");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.TokenHash).IsUnique();
+            entity.Property(x => x.TokenHash).HasMaxLength(256).IsRequired();
+            entity.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

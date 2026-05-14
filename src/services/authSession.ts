@@ -1,6 +1,7 @@
 import { AuthSession, UserRole } from '../types';
 
 export const AUTH_SESSION_STORAGE_KEY = 'saxovat_auth_session';
+export const REFRESH_TOKEN_STORAGE_KEY = 'saxovat-refresh-token';
 
 const isValidStoredRole = (value: unknown): value is UserRole => {
   return Object.values(UserRole).includes(value as UserRole);
@@ -42,10 +43,16 @@ export const readStoredAuthSession = () => parseStoredAuthSession(localStorage.g
 
 export const writeStoredAuthSession = (session: AuthSession) => {
   localStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(session));
+  if (session.tokens.refreshToken) {
+    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, session.tokens.refreshToken);
+  }
 };
 
 export const clearStoredAuthSession = () => {
   localStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
 };
 
 export const getStoredAccessToken = () => readStoredAuthSession()?.tokens.accessToken ?? null;
+
+export const getStoredRefreshToken = () => localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);

@@ -16,6 +16,12 @@ public record LoginResponse(AuthSessionResponse Session);
 
 public record CurrentUserResponse(UserResponse User);
 
+public sealed record RefreshTokenRequest(string RefreshToken);
+
+public sealed record RefreshTokenResponse(AuthTokensResponse Tokens);
+
+public sealed record RegisterRequest(string FullName, string Email, string Phone, string Password);
+
 public sealed class LoginRequest
 {
     [Required, EmailAddress]

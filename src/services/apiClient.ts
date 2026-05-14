@@ -1,7 +1,35 @@
 import type { ApiErrorResponse, ApiListResponse } from '../types';
-import { getStoredAccessToken } from './authSession';
+import { getStoredAccessToken, getStoredRefreshToken, readStoredAuthSession, writeStoredAuthSession } from './authSession';
 
 export const AUTH_UNAUTHORIZED_EVENT = 'saxovat:auth-unauthorized';
+
+let requestRefreshPromise: Promise<boolean> | null = null;
+
+const getApiBaseUrl = () => {
+  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  return configuredBaseUrl && configuredBaseUrl.length > 0 ? configuredBaseUrl : 'http://localhost:5062';
+};
+
+const performTokenRefresh = async (refreshToken: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!response.ok) return false;
+
+    const data = await response.json() as { tokens: { accessToken: string; refreshToken?: string; expiresAt?: string } };
+    const session = readStoredAuthSession();
+    if (session) {
+      writeStoredAuthSession({ ...session, tokens: { ...session.tokens, ...data.tokens } });
+    }
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 export class ServiceError extends Error {
   readonly code: ApiErrorResponse['code'];
@@ -42,13 +70,6 @@ type RequestOptions = {
   query?: Record<string, unknown>;
   accessToken?: string | null;
   suppressUnauthorizedEvent?: boolean;
-};
-
-const DEFAULT_API_BASE_URL = 'http://localhost:5062';
-
-const getApiBaseUrl = () => {
-  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
-  return configuredBaseUrl && configuredBaseUrl.length > 0 ? configuredBaseUrl : DEFAULT_API_BASE_URL;
 };
 
 const buildUrl = (path: string, query?: Record<string, unknown>) => {
@@ -160,6 +181,32 @@ const request = async <T>(method: string, path: string, options: RequestOptions 
 
   if (!response.ok) {
     if (response.status === 401 && !options.suppressUnauthorizedEvent) {
+      const storedRefreshToken = getStoredRefreshToken();
+      if (storedRefreshToken) {
+        requestRefreshPromise ??= performTokenRefresh(storedRefreshToken);
+        const refreshed = await requestRefreshPromise;
+        requestRefreshPromise = null;
+        if (refreshed) {
+          const newToken = getStoredAccessToken();
+          if (newToken) {
+            headers.set('Authorization', `Bearer ${newToken}`);
+            try {
+              response = await fetch(buildUrl(path, options.query), {
+                method,
+                headers,
+                body: options.body === undefined ? undefined : isJsonBody ? JSON.stringify(options.body) : (options.body as BodyInit),
+              });
+              if (response.ok) {
+                const retryPayload = response.status !== 204 && response.headers.get('content-type')?.includes('application/json')
+                  ? await response.json() : null;
+                return retryPayload as T;
+              }
+            } catch {
+              // fall through to unauthorized
+            }
+          }
+        }
+      }
       emitUnauthorized();
     }
 
