@@ -64,6 +64,7 @@ public interface INotificationService
 {
     Task<ApiListResponse<NotificationResponse>> GetNotificationsAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<NotificationResponse> MarkAsReadAsync(string id, Guid userId, CancellationToken cancellationToken = default);
+    Task<int> GetUnreadCountAsync(Guid userId, CancellationToken cancellationToken = default);
 }
 
 public interface IAuditLogService
@@ -74,6 +75,11 @@ public interface IAuditLogService
 public interface IAnalyticsService
 {
     Task<DashboardAnalyticsResponse> GetDashboardAnalyticsAsync(UserRole actorRole, CancellationToken cancellationToken = default);
+}
+
+public interface IOrderPushNotificationService
+{
+    Task PushOrderStatusChangedAsync(Guid orderId, string orderNumber, OrderStatus newStatus, Guid customerId, CancellationToken cancellationToken = default);
 }
 
 public interface IPasswordHasherService

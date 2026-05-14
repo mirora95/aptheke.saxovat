@@ -4,12 +4,14 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Saxovat.API.Hubs;
 using Saxovat.API.Middleware;
+using Saxovat.API.Services;
+using Saxovat.Application.Interfaces;
 using Saxovat.Application.Common;
 using Saxovat.Infrastructure;
 using Saxovat.Infrastructure.Persistence;
 using Saxovat.Infrastructure.Security;
-using Saxovat.Application.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,6 +37,7 @@ builder.Services.AddControllers()
         };
     });
 
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -115,6 +118,7 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddSingleton<IOrderPushNotificationService, SignalRNotificationPushService>();
 
 var app = builder.Build();
 
@@ -131,6 +135,7 @@ app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<OrderHub>("/hubs/orders");
 
 using (var scope = app.Services.CreateScope())
 {

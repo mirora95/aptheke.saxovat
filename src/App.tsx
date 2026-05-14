@@ -2,6 +2,8 @@ import React from 'react';
 import { Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
 import { useAuth, AuthProvider, getRoleHomePath } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { NotificationProvider } from './context/NotificationContext';
+import { NotificationToast } from './components/NotificationToast';
 import { UserRole } from './types';
 
 // Screens
@@ -244,7 +246,10 @@ export default function App() {
   return (
     <AuthProvider>
       <CartProvider>
-        <AppContent />
+        <NotificationProvider>
+          <AppContent />
+          <NotificationToast />
+        </NotificationProvider>
       </CartProvider>
     </AuthProvider>
   );

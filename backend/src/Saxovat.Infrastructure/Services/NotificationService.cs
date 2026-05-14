@@ -63,6 +63,11 @@ public sealed class NotificationService(SaxovatDbContext dbContext) : INotificat
         await Task.CompletedTask;
     }
 
+    public async Task<int> GetUnreadCountAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Notifications.CountAsync(x => x.UserId == userId && !x.IsRead, cancellationToken);
+    }
+
     internal async Task AddForRolesAsync(
         IEnumerable<UserRole> roles,
         NotificationType type,

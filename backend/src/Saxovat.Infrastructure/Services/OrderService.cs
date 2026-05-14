@@ -11,7 +11,8 @@ public sealed class OrderService(
     SaxovatDbContext dbContext,
     PaymentService paymentService,
     AuditLogWriter auditLogWriter,
-    NotificationService notificationService) : IOrderService
+    NotificationService notificationService,
+    IOrderPushNotificationService orderPushNotificationService) : IOrderService
 {
     private static readonly Dictionary<OrderStatus, OrderStatus[]> AllowedTransitions = new()
     {
@@ -293,6 +294,14 @@ public sealed class OrderService(
             order.Id.ToString(),
             cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await orderPushNotificationService.PushOrderStatusChangedAsync(order.Id, order.OrderNumber, nextStatus, order.CustomerId, cancellationToken);
+        }
+        catch
+        {
+            // Don't fail the order update if push fails
+        }
         return order.ToResponse();
     }
 }
