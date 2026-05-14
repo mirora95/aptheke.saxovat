@@ -1,0 +1,24 @@
+services:
+  db:
+    image: postgres:16-alpine
+    env_file: .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-saxovat} -d ${POSTGRES_DB:-saxovat_pharmacy}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+    ports:
+      - "5062:8080"
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
