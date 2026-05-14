@@ -23,7 +23,9 @@ public static class ClaimsPrincipalExtensions
     public static Guid GetUserId(this ClaimsPrincipal principal)
     {
         var claim = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-        return Guid.Parse(claim!);
+        if (string.IsNullOrWhiteSpace(claim) || !Guid.TryParse(claim, out var userId))
+            throw new UnauthorizedAccessException("User identity is missing or invalid");
+        return userId;
     }
 
     public static UserRole GetRequiredRole(this ClaimsPrincipal principal)

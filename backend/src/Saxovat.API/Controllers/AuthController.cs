@@ -21,35 +21,15 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
     [HttpPost("refresh")]
     [ProducesResponseType<RefreshTokenResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var result = await authService.RefreshTokenAsync(request, cancellationToken);
-            return Ok(result);
-        }
-        catch (UnauthorizedAppException)
-        {
-            return Unauthorized();
-        }
-    }
+    public Task<RefreshTokenResponse> Refresh([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
+        => authService.RefreshTokenAsync(request, cancellationToken);
 
     [AllowAnonymous]
     [HttpPost("register")]
     [ProducesResponseType<LoginResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var result = await authService.RegisterAsync(request, cancellationToken);
-            return Ok(result);
-        }
-        catch (ValidationAppException)
-        {
-            return BadRequest();
-        }
-    }
+    public Task<LoginResponse> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken)
+        => authService.RegisterAsync(request, cancellationToken);
 
     [Authorize]
     [HttpPost("logout")]

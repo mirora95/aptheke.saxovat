@@ -201,7 +201,11 @@ export class ApiAuthService implements IAuthService {
   }
 
   async logout() {
-    return;
+    try {
+      await apiClient.post('/auth/logout', undefined, { suppressUnauthorizedEvent: true });
+    } catch {
+      // Best-effort — session is cleared client-side regardless
+    }
   }
 }
 

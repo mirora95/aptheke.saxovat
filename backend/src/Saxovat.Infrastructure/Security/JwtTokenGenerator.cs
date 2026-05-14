@@ -37,7 +37,7 @@ public sealed class JwtTokenGenerator(IOptions<JwtOptions> options) : IJwtTokenG
             signingCredentials: credentials);
 
         var accessToken = new JwtSecurityTokenHandler().WriteToken(token);
-        var refreshToken = $"refresh-{user.Id:N}-{Guid.NewGuid():N}";
+        var refreshToken = string.Empty;
 
         return new AuthTokensResponse(
             accessToken,

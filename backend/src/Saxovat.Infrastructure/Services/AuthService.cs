@@ -57,21 +57,20 @@ public sealed class AuthService(
     public async Task<RefreshTokenResponse> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default)
     {
         var tokenHash = ComputeSha256Hash(request.RefreshToken);
+
+        var affected = await dbContext.RefreshTokens
+            .Where(x => x.TokenHash == tokenHash && !x.IsUsed && x.ExpiresAt > DateTime.UtcNow)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.IsUsed, true), cancellationToken);
+
+        if (affected == 0)
+            throw new UnauthorizedAppException("Invalid or expired refresh token");
+
         var storedToken = await dbContext.RefreshTokens
             .Include(x => x.User)
-            .SingleOrDefaultAsync(x => x.TokenHash == tokenHash && !x.IsUsed, cancellationToken);
-
-        if (storedToken is null || storedToken.ExpiresAt < DateTime.UtcNow)
-        {
-            throw new UnauthorizedAppException("Invalid or expired refresh token");
-        }
-
-        storedToken.IsUsed = true;
+            .SingleAsync(x => x.TokenHash == tokenHash, cancellationToken);
 
         var tokens = jwtTokenGenerator.GenerateTokens(storedToken.User!);
         var newRefreshToken = await GenerateRefreshToken(storedToken.UserId, cancellationToken);
-
-        await dbContext.SaveChangesAsync(cancellationToken);
 
         return new RefreshTokenResponse(tokens with { RefreshToken = newRefreshToken });
     }
