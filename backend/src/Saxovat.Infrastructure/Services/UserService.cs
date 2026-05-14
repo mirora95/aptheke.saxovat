@@ -225,4 +225,26 @@ public sealed class UserService(
         await dbContext.SaveChangesAsync(cancellationToken);
         return user.ToResponse();
     }
+
+    public async Task<UserResponse> ResetPasswordAsync(string id, ResetPasswordRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
+    {
+        var userId = MappingExtensions.ParseGuid(id, "User id");
+        var user = await dbContext.Users.SingleOrDefaultAsync(x => x.Id == userId, cancellationToken)
+            ?? throw new NotFoundAppException("User", id);
+
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
+            throw new ValidationAppException("Password must be at least 6 characters");
+
+        user.PasswordHash = passwordHasher.HashPassword(request.NewPassword);
+        await auditLogWriter.WriteAsync(
+            actorUserId,
+            "PASSWORD_RESET",
+            "User",
+            user.Id.ToString(),
+            $"Password was reset for {user.FullName}",
+            new { user.Email },
+            cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return user.ToResponse();
+    }
 }

@@ -64,4 +64,15 @@ public sealed class UsersController(IUserService userService) : ControllerBase
     [ProducesResponseType<UserResponse>(StatusCodes.Status200OK)]
     public Task<UserResponse> TopUpBalance(string id, [FromBody] TopUpBalanceRequest request, CancellationToken cancellationToken)
         => userService.TopUpBalanceAsync(id, request, User.GetRequiredUserId(), User.GetRequiredRole(), cancellationToken);
+
+    [HttpPatch("{id}/reset-password")]
+    [Authorize(Roles = "PHARMACIST,SUPERADMIN")]
+    [ProducesResponseType<UserResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiErrorResponse>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResetPassword(string id, ResetPasswordRequest request, CancellationToken cancellationToken)
+    {
+        var actorId = User.GetRequiredUserId();
+        var result = await userService.ResetPasswordAsync(id, request, actorId, cancellationToken);
+        return Ok(result);
+    }
 }

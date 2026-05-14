@@ -1,9 +1,86 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getRoleHomePath, useAuth } from '../context/AuthContext';
 import { Button, Input, Card } from '../components/UI';
 import { LogIn } from 'lucide-react';
 import { motion } from 'motion/react';
+import { apiClient } from '../services/apiClient';
+import { writeStoredAuthSession } from '../services/authSession';
+import type { LoginResponse } from '../types';
+
+export const RegisterScreen: React.FC = () => {
+  const [form, setForm] = useState({ fullName: '', email: '', phone: '', password: '', confirmPassword: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!form.fullName.trim() || !form.email.trim() || !form.phone.trim() || !form.password.trim()) {
+      setError('All fields are required');
+      return;
+    }
+    if (form.password !== form.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    if (form.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await apiClient.post<LoginResponse>('/auth/register', {
+        fullName: form.fullName.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        password: form.password,
+      });
+      const session = {
+        user: response.session.user,
+        tokens: response.session.tokens,
+      };
+      writeStoredAuthSession(session);
+      window.location.reload();
+    } catch (err: any) {
+      setError(err.message || 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-blue-600 tracking-tight">Saxovat</h1>
+          <p className="text-gray-500 mt-2">Create your account</p>
+        </div>
+        <Card className="p-8">
+          <h2 className="text-xl font-semibold mb-6">Register</h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input label="Full Name" value={form.fullName} onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))} placeholder="Your full name" required />
+            <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="name@example.com" required />
+            <Input label="Phone" type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+998901234567" required />
+            <Input label="Password" type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="At least 6 characters" required />
+            <Input label="Confirm Password" type="password" value={form.confirmPassword} onChange={e => setForm(f => ({ ...f, confirmPassword: e.target.value }))} placeholder="Repeat password" required />
+            {error ? <p className="text-sm text-red-500">{error}</p> : null}
+            <Button type="submit" className="w-full" isLoading={loading}>Create Account</Button>
+          </form>
+          <div className="mt-6 border-t border-gray-100 pt-4 text-center">
+            <p className="text-sm text-gray-500">
+              Already have an account?{' '}
+              <Link to="/login" className="text-blue-600 font-medium hover:underline">Sign In</Link>
+            </p>
+          </div>
+        </Card>
+      </motion.div>
+    </div>
+  );
+};
 
 export const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('customer@example.com');
@@ -74,7 +151,8 @@ export const LoginScreen: React.FC = () => {
 
           <div className="mt-6 border-t border-gray-100 pt-4 text-center">
             <p className="text-sm text-gray-500">
-              Account registration and password reset are not available in the app yet.
+              Don't have an account?{' '}
+              <Link to="/register" className="text-blue-600 font-medium hover:underline">Register here</Link>
             </p>
           </div>
         </Card>

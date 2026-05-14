@@ -499,6 +499,9 @@ export const UserManagementScreen: React.FC = () => {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
+  const [resetPasswordValue, setResetPasswordValue] = useState('');
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -598,11 +601,50 @@ export const UserManagementScreen: React.FC = () => {
                   >
                     {user.isActive ? 'Deactivate' : 'Activate'}
                   </Button>
+                  <Button variant="outline" size="sm" onClick={() => setResetPasswordUserId(user.id)}>
+                    Reset Password
+                  </Button>
                 </div>
               </div>
             ))
           )}
         </div>
+        {resetPasswordUserId ? (
+          <div className="mt-6 rounded-2xl border border-gray-100 p-6">
+            <h3 className="font-semibold text-gray-900 mb-2">Reset Password</h3>
+            <p className="text-sm text-gray-500 mb-4">Enter a new password for this user.</p>
+            <Input
+              label="New Password"
+              type="password"
+              value={resetPasswordValue}
+              onChange={e => setResetPasswordValue(e.target.value)}
+              placeholder="At least 6 characters"
+            />
+            <div className="flex gap-3 mt-4">
+              <Button
+                isLoading={resettingPassword}
+                onClick={async () => {
+                  if (!resetPasswordValue || resetPasswordValue.length < 6) return;
+                  setResettingPassword(true);
+                  try {
+                    await userService.resetPassword(resetPasswordUserId!, resetPasswordValue);
+                    setResetPasswordUserId(null);
+                    setResetPasswordValue('');
+                  } catch (err: any) {
+                    setError(err.message);
+                  } finally {
+                    setResettingPassword(false);
+                  }
+                }}
+              >
+                Save New Password
+              </Button>
+              <Button variant="outline" onClick={() => { setResetPasswordUserId(null); setResetPasswordValue(''); }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </Card>
     </div>
   );

@@ -5,7 +5,7 @@ import { CartProvider } from './context/CartContext';
 import { UserRole } from './types';
 
 // Screens
-import { LoginScreen } from './screens/AuthScreens';
+import { LoginScreen, RegisterScreen } from './screens/AuthScreens';
 import {
   CartScreen,
   CheckoutScreen,
@@ -157,6 +157,7 @@ const AppContent: React.FC = () => {
 
   return (
     <Routes>
+      <Route path="/register" element={isAuthenticated ? <Navigate to={roleHomePath} replace /> : <RegisterScreen />} />
       <Route path="/login" element={isAuthenticated ? <Navigate to={roleHomePath} replace /> : <LoginScreen />} />
 
       {/* Customer Routes */}

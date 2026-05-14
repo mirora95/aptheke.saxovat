@@ -63,3 +63,5 @@ public sealed class TopUpBalanceRequest
 
     public string? Note { get; set; }
 }
+
+public sealed record ResetPasswordRequest(string NewPassword);

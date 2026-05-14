@@ -142,6 +142,7 @@ export interface IUserService {
   createPharmacist(user: CreatePharmacistRequest): Promise<UserResponse>;
   updateUser(id: string, user: UpdateUserRequest): Promise<UserResponse>;
   toggleUserStatus(id: string): Promise<UserResponse>;
+  resetPassword(id: string, newPassword: string): Promise<UserResponse>;
 }
 
 export class ApiAuthService implements IAuthService {
@@ -387,6 +388,11 @@ export class ApiUserService implements IUserService {
 
     const endpoint = user.role === UserRole.PHARMACIST ? `/pharmacists/${id}/status` : `/users/${id}/status`;
     const response = await apiClient.patch<UserResponse>(endpoint, { isActive: !user.isActive });
+    return normalizeUser(response);
+  }
+
+  async resetPassword(id: string, newPassword: string) {
+    const response = await apiClient.patch<UserResponse>(`/users/${id}/reset-password`, { newPassword });
     return normalizeUser(response);
   }
 }

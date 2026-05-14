@@ -22,6 +22,7 @@ public interface IUserService
     Task<UserResponse> UpdatePharmacistAsync(string id, UpdateUserRequest request, Guid? actorUserId = null, CancellationToken cancellationToken = default);
     Task<UserResponse> UpdateUserStatusAsync(string id, UpdateUserStatusRequest request, Guid? actorUserId = null, CancellationToken cancellationToken = default);
     Task<UserResponse> TopUpBalanceAsync(string id, TopUpBalanceRequest request, Guid actorUserId, UserRole actorRole, CancellationToken cancellationToken = default);
+    Task<UserResponse> ResetPasswordAsync(string id, ResetPasswordRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
 }
 
 public interface ICategoryService
