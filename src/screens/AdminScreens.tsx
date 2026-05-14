@@ -9,6 +9,7 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
+import { BarChartCard, PieChartCard, DonutChartCard } from '../components/Charts';
 import { Badge, Button, Card, Input } from '../components/UI';
 import {
   categoryService,
@@ -1038,39 +1039,32 @@ export const AdminReportsScreen: React.FC = () => {
       {error ? <Card className="border border-red-100 bg-red-50 p-4 text-sm text-red-700">{error}</Card> : null}
 
       <div className="grid gap-6 xl:grid-cols-3">
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold text-gray-900">Users by role</h2>
-          <div className="mt-5 space-y-3 text-sm text-gray-600">
-            <div className="flex items-center justify-between"><span>Customers</span><span>{userCounts.customers}</span></div>
-            <div className="flex items-center justify-between"><span>Pharmacists</span><span>{userCounts.pharmacists}</span></div>
-            <div className="flex items-center justify-between"><span>SuperAdmins</span><span>{userCounts.superAdmins}</span></div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold text-gray-900">Medicines by stock state</h2>
-          <div className="mt-5 space-y-3 text-sm text-gray-600">
-            <div className="flex items-center justify-between"><span>Active</span><span>{medicineCounts.active}</span></div>
-            <div className="flex items-center justify-between"><span>Inactive</span><span>{medicineCounts.inactive}</span></div>
-            <div className="flex items-center justify-between"><span>Low stock</span><span>{medicineCounts.lowStock}</span></div>
-            <div className="flex items-center justify-between"><span>Out of stock</span><span>{medicineCounts.outOfStock}</span></div>
-            <div className="flex items-center justify-between"><span>Featured</span><span>{medicineCounts.featured}</span></div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold text-gray-900">Orders by status</h2>
-          <div className="mt-5 space-y-3">
-            {Object.values(OrderStatus).map(status => (
-              <div key={status} className="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-3">
-                <Badge variant={getOrderStatusVariant(status)}>{status}</Badge>
-                <span className="text-sm font-semibold text-gray-900">
-                  {orders.filter(order => order.orderStatus === status).length}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Card>
+        <PieChartCard
+          title="Users by role"
+          data={[
+            { name: 'Customers', value: userCounts.customers },
+            { name: 'Pharmacists', value: userCounts.pharmacists },
+            { name: 'SuperAdmins', value: userCounts.superAdmins },
+          ]}
+        />
+        <DonutChartCard
+          title="Medicine stock health"
+          data={[
+            { name: 'Active', value: medicineCounts.active },
+            { name: 'Low stock', value: medicineCounts.lowStock },
+            { name: 'Out of stock', value: medicineCounts.outOfStock },
+            { name: 'Inactive', value: medicineCounts.inactive },
+          ]}
+          centerText={String(medicineCounts.active)}
+          hint="Active / total medicines"
+        />
+        <BarChartCard
+          title="Orders by status"
+          data={Object.values(OrderStatus).map(status => ({
+            name: status,
+            value: orders.filter(order => order.orderStatus === status).length,
+          }))}
+        />
       </div>
     </div>
   );
