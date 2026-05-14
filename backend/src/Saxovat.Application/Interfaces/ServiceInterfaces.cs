@@ -66,6 +66,11 @@ public interface INotificationService
     Task<NotificationResponse> MarkAsReadAsync(string id, Guid userId, CancellationToken cancellationToken = default);
 }
 
+public interface IAuditLogService
+{
+    Task<ApiListResponse<AuditLogResponse>> GetAuditLogsAsync(AuditLogQuery query, CancellationToken cancellationToken = default);
+}
+
 public interface IAnalyticsService
 {
     Task<DashboardAnalyticsResponse> GetDashboardAnalyticsAsync(UserRole actorRole, CancellationToken cancellationToken = default);

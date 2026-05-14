@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<INotificationService>(provider => provider.GetRequiredService<NotificationService>());
         services.AddScoped<IPaymentService>(provider => provider.GetRequiredService<PaymentService>());
+        services.AddScoped<IAuditLogService, AuditLogService>();
         services.AddScoped<IAnalyticsService, AnalyticsService>();
 
         return services;

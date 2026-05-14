@@ -24,6 +24,7 @@ import {
   PharmacistOrderDetailsScreen,
   PharmacistOrdersScreen,
 } from './screens/PharmacistScreens';
+import { AuditLogsScreen } from './screens/AuditLogsScreen';
 import {
   AdminDashboard,
   AdminReportsScreen,
@@ -37,7 +38,7 @@ import {
 // Components
 import { CustomerNavbar } from './components/Navigation';
 import { Button } from './components/UI';
-import { BarChart3, FolderTree, LogOut, LayoutDashboard, Package, Settings, ShieldCheck, ShoppingBag, Users } from 'lucide-react';
+import { BarChart3, FolderTree, History, LogOut, LayoutDashboard, Package, Settings, ShieldCheck, ShoppingBag, Users } from 'lucide-react';
 
 const AppLoadingScreen: React.FC = () => (
   <div className="h-screen flex items-center justify-center bg-gray-50">
@@ -89,6 +90,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode; title: string }> = ({ c
         { icon: Users, label: 'Users', path: '/admin/users' },
         { icon: FolderTree, label: 'Categories', path: '/admin/categories' },
         { icon: Package, label: 'Medicines', path: '/admin/medicines' },
+        { icon: History, label: 'Audit Logs', path: '/admin/audit-logs' },
         { icon: BarChart3, label: 'Reports', path: '/admin/reports' },
         { icon: Settings, label: 'Settings', path: '/admin/settings' },
       ];
@@ -221,6 +223,7 @@ const AppContent: React.FC = () => {
                   <Route path="/admin/users" element={<UserManagementScreen />} />
                   <Route path="/admin/categories" element={<CategoryManagementScreen />} />
                   <Route path="/admin/medicines" element={<MedicineOversightScreen />} />
+                  <Route path="/admin/audit-logs" element={<AuditLogsScreen />} />
                   <Route path="/admin/reports" element={<AdminReportsScreen />} />
                   <Route path="/admin/settings" element={<AdminSettingsScreen />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
