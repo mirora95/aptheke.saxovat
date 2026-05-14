@@ -72,7 +72,8 @@ public sealed class UsersController(IUserService userService) : ControllerBase
     public async Task<IActionResult> ResetPassword(string id, ResetPasswordRequest request, CancellationToken cancellationToken)
     {
         var actorId = User.GetRequiredUserId();
-        var result = await userService.ResetPasswordAsync(id, request, actorId, cancellationToken);
+        var actorRole = User.GetRequiredRole();
+        var result = await userService.ResetPasswordAsync(id, request, actorId, actorRole, cancellationToken);
         return Ok(result);
     }
 }

@@ -624,14 +624,17 @@ export const UserManagementScreen: React.FC = () => {
               <Button
                 isLoading={resettingPassword}
                 onClick={async () => {
-                  if (!resetPasswordValue || resetPasswordValue.length < 6) return;
+                  if (!resetPasswordValue || resetPasswordValue.length < 6) {
+                    setError('Password must be at least 6 characters');
+                    return;
+                  }
                   setResettingPassword(true);
                   try {
                     await userService.resetPassword(resetPasswordUserId!, resetPasswordValue);
                     setResetPasswordUserId(null);
                     setResetPasswordValue('');
-                  } catch (err: any) {
-                    setError(err.message);
+                  } catch (err) {
+                    setError(getErrorMessage(err, 'Unable to reset password'));
                   } finally {
                     setResettingPassword(false);
                   }
