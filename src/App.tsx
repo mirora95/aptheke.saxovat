@@ -1,5 +1,5 @@
-import React from 'react';
-import { Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Routes, Route, Navigate, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, AuthProvider, getRoleHomePath } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { NotificationProvider } from './context/NotificationContext';
@@ -40,7 +40,7 @@ import {
 // Components
 import { CustomerNavbar } from './components/Navigation';
 import { Button } from './components/UI';
-import { BarChart3, FolderTree, History, LogOut, LayoutDashboard, Package, Settings, ShieldCheck, ShoppingBag, Users } from 'lucide-react';
+import { BarChart3, FolderTree, History, LogOut, LayoutDashboard, Menu, Package, Settings, ShieldCheck, ShoppingBag, Users, X } from 'lucide-react';
 
 const AppLoadingScreen: React.FC = () => (
   <div className="h-screen flex items-center justify-center bg-gray-50">
@@ -75,9 +75,11 @@ const RoutePlaceholder: React.FC<{ title: string; description: string }> = ({ ti
   </div>
 );
 
-const AdminLayout: React.FC<{ children: React.ReactNode; title: string }> = ({ children, title }) => {
-  const { logout, role } = useAuth();
+const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { logout, role, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const isPharmacist = role === UserRole.PHARMACIST;
 
   const menuItems = isPharmacist
@@ -97,51 +99,112 @@ const AdminLayout: React.FC<{ children: React.ReactNode; title: string }> = ({ c
         { icon: Settings, label: 'Settings', path: '/admin/settings' },
       ];
 
+  // Derive page title from the current pathname — fall back to role label.
+  const currentTitle =
+    menuItems.find(item =>
+      item.path === '/'
+        ? location.pathname === '/'
+        : location.pathname.startsWith(item.path),
+    )?.label ?? (isPharmacist ? 'Pharmacist Panel' : 'System Administration');
+
+  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+    `flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors font-medium ${
+      isActive
+        ? 'bg-blue-50 text-blue-600'
+        : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'
+    }`;
+
+  const avatarInitial = user?.fullName?.charAt(0).toUpperCase() ?? 'U';
+  const displayName = user?.fullName ?? 'User';
+
+  const SidebarContent = () => (
+    <>
+      <div className="p-6">
+        <h1 className="text-2xl font-bold text-blue-600 tracking-tight">Saxovat Admin</h1>
+      </div>
+      <nav className="flex-1 px-4 space-y-1">
+        {menuItems.map(item => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            end={item.path === '/'}
+            className={navLinkClass}
+            onClick={() => setMobileOpen(false)}
+          >
+            <item.icon size={20} />
+            <span>{item.label}</span>
+          </NavLink>
+        ))}
+      </nav>
+      <div className="p-4 border-t border-gray-100">
+        <Button
+          variant="ghost"
+          className="w-full justify-start text-red-500 hover:bg-red-50 hover:text-red-600"
+          onClick={() => {
+            logout();
+            navigate('/login', { replace: true });
+          }}
+        >
+          <LogOut size={20} className="mr-3" />
+          Sign Out
+        </Button>
+      </div>
+    </>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
+      {/* Desktop Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-100 hidden lg:flex flex-col sticky top-0 h-screen">
-        <div className="p-6">
-          <h1 className="text-2xl font-bold text-blue-600 tracking-tight">Saxovat Admin</h1>
-        </div>
-        <nav className="flex-1 px-4 space-y-1">
-          {menuItems.map(item => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-colors font-medium"
-            >
-              <item.icon size={20} />
-              <span>{item.label}</span>
-            </Link>
-          ))}
-        </nav>
-        <div className="p-4 border-t border-gray-100">
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-red-500 hover:bg-red-50 hover:text-red-600"
-            onClick={() => {
-              logout();
-              navigate('/login', { replace: true });
-            }}
-          >
-            <LogOut size={20} className="mr-3" />
-            Sign Out
-          </Button>
-        </div>
+        <SidebarContent />
       </aside>
+
+      {/* Mobile Sidebar Overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-50 flex lg:hidden"
+          aria-modal="true"
+        >
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-gray-900/40"
+            onClick={() => setMobileOpen(false)}
+          />
+          {/* Drawer */}
+          <aside className="relative z-10 w-64 bg-white flex flex-col h-full shadow-xl">
+            <button
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              onClick={() => setMobileOpen(false)}
+              aria-label="Close navigation"
+            >
+              <X size={18} />
+            </button>
+            <SidebarContent />
+          </aside>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 lg:px-8 sticky top-0 z-40">
-          <h2 className="text-lg font-bold text-gray-800">{title}</h2>
+        <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-40">
+          <div className="flex items-center space-x-3">
+            {/* Hamburger — mobile only */}
+            <button
+              className="lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Open navigation"
+            >
+              <Menu size={22} />
+            </button>
+            <h2 className="text-lg font-bold text-gray-800">{currentTitle}</h2>
+          </div>
           <div className="flex items-center space-x-4">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-gray-800">Admin User</p>
+              <p className="text-sm font-bold text-gray-800">{displayName}</p>
               <p className="text-xs text-gray-500 capitalize">{role?.toLowerCase()}</p>
             </div>
-            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-              A
+            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold select-none">
+              {avatarInitial}
             </div>
           </div>
         </header>
@@ -196,7 +259,7 @@ const AppContent: React.FC = () => {
           path="/*"
           element={
             <ProtectedRoute allowedRoles={[UserRole.PHARMACIST]}>
-              <AdminLayout title="Pharmacist Panel">
+              <AdminLayout>
                 <Routes>
                   <Route path="/" element={<PharmacistDashboard />} />
                   <Route path="/pharmacist/medicines" element={<PharmacistMedicinesScreen />} />
@@ -218,7 +281,7 @@ const AppContent: React.FC = () => {
           path="/*"
           element={
             <ProtectedRoute allowedRoles={[UserRole.SUPERADMIN]}>
-              <AdminLayout title="System Administration">
+              <AdminLayout>
                 <Routes>
                   <Route path="/" element={<AdminDashboard />} />
                   <Route path="/admin/pharmacists" element={<PharmacistManagementScreen />} />
