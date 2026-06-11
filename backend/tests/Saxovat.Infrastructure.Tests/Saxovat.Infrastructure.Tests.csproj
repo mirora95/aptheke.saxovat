@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Saxovat.API\Saxovat.API.csproj" />
     <ProjectReference Include="..\..\src\Saxovat.Application\Saxovat.Application.csproj" />
     <ProjectReference Include="..\..\src\Saxovat.Domain\Saxovat.Domain.csproj" />
     <ProjectReference Include="..\..\src\Saxovat.Infrastructure\Saxovat.Infrastructure.csproj" />

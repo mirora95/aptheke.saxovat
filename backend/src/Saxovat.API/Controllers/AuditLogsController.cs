@@ -7,8 +7,8 @@ using Saxovat.Application.Interfaces;
 namespace Saxovat.API.Controllers;
 
 [ApiController]
-[Route("api/audit-logs")]
-[Authorize(Roles = "SuperAdmin")]
+[Route("audit-logs")]
+[Authorize(Roles = "SUPERADMIN")]
 public sealed class AuditLogsController(IAuditLogService auditLogService) : ControllerBase
 {
     [HttpGet]

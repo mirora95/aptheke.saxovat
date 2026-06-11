@@ -96,9 +96,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    const accessToken = session?.tokens.accessToken ?? null;
+    void authService.logout(accessToken);
     setSession(null);
     clearStoredAuthSession();
-    void authService.logout();
   };
 
   return (

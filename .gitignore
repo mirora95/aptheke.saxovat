@@ -4,6 +4,7 @@ dist/
 coverage/
 .dotnet/
 .vs/
+.idea/
 .claude/
 bin/
 obj/
@@ -11,3 +12,9 @@ obj/
 *.log
 .env*
 !.env.example
+
+# Android signing — never commit these
+android/app/keystore.properties
+*.jks
+*.keystore
+android/local.properties

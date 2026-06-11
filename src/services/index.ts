@@ -102,7 +102,7 @@ export interface IAuthService {
   restoreSession(session: AuthSession | null): Promise<AuthSession | null>;
   refreshToken(request: RefreshTokenRequest): Promise<RefreshTokenResponse>;
   getCurrentUser(session: AuthSession): Promise<CurrentUserResponse>;
-  logout(): Promise<void>;
+  logout(accessToken?: string | null): Promise<void>;
 }
 
 export interface IMedicineService {
@@ -201,9 +201,12 @@ export class ApiAuthService implements IAuthService {
     };
   }
 
-  async logout() {
+  async logout(accessToken?: string | null) {
     try {
-      await apiClient.post('/auth/logout', undefined, { suppressUnauthorizedEvent: true });
+      await apiClient.post('/auth/logout', undefined, {
+        accessToken,
+        suppressUnauthorizedEvent: true,
+      });
     } catch {
       // Best-effort — session is cleared client-side regardless
     }
