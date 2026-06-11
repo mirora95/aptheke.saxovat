@@ -2,6 +2,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY Saxovat.slnx .
 COPY src/ ./src/
+COPY tests/ ./tests/
 RUN dotnet restore
 RUN dotnet publish src/Saxovat.API/Saxovat.API.csproj -c Release -o /app
 
