@@ -1,6 +1,5 @@
-import assert from 'node:assert/strict';
-import { after, before, beforeEach, test } from 'node:test';
-import { createServer } from 'vite';
+const assert = require('node:assert/strict');
+const { after, before, beforeEach, test } = require('node:test');
 
 let server;
 let api;
@@ -8,6 +7,7 @@ let auth;
 let unauthorizedEvents;
 
 before(async () => {
+  const { createServer } = await import('vite');
   server = await createServer({
     configFile: false,
     optimizeDeps: { noDiscovery: true },

@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "test": "node --test tests/apiClient.test.mjs",
+    "test": "node --test tests/apiClient.test.cjs",
     "cap:sync": "npx cap sync android",
     "cap:open": "npx cap open android",
     "build:android": "npm run build && npm run cap:sync"
