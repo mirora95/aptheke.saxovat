@@ -180,37 +180,40 @@ const request = async <T>(method: string, path: string, options: RequestOptions 
   const payload = hasJsonBody ? await response.json() : null;
 
   if (!response.ok) {
-    if (response.status === 401 && !options.suppressUnauthorizedEvent) {
-      const storedRefreshToken = getStoredRefreshToken();
-      if (storedRefreshToken) {
-        requestRefreshPromise ??= performTokenRefresh(storedRefreshToken);
-        const refreshed = await requestRefreshPromise;
-        requestRefreshPromise = null;
-        if (refreshed) {
-          const newToken = getStoredAccessToken();
-          if (newToken) {
-            return retryWithRefreshedToken<T>(method, path, { ...options, accessToken: newToken });
+    const handleErrorResponse = async (): Promise<T> => {
+      if (response.status === 401 && !options.suppressUnauthorizedEvent) {
+        const storedRefreshToken = getStoredRefreshToken();
+        if (storedRefreshToken) {
+          requestRefreshPromise ??= performTokenRefresh(storedRefreshToken);
+          const refreshed = await requestRefreshPromise;
+          requestRefreshPromise = null;
+          if (refreshed) {
+            const newToken = getStoredAccessToken();
+            if (newToken) {
+              try {
+                return await request<T>(method, path, {
+                  ...options,
+                  accessToken: newToken,
+                  suppressUnauthorizedEvent: true,
+                });
+              } catch (error) {
+                if (error instanceof ServiceError && error.status === 401) {
+                  emitUnauthorized();
+                }
+                throw error;
+              }
+            }
           }
         }
+        emitUnauthorized();
       }
-      emitUnauthorized();
-    }
 
-    throw createServiceError(response, payload, response.statusText || 'Request failed');
+      throw createServiceError(response, payload, response.statusText || 'Request failed');
+    };
+    return handleErrorResponse();
   }
 
   return payload as T;
-};
-
-const retryWithRefreshedToken = async <T>(method: string, path: string, options: RequestOptions): Promise<T> => {
-  try {
-    return await request<T>(method, path, { ...options, suppressUnauthorizedEvent: true });
-  } catch (error) {
-    if (error instanceof ServiceError && error.status === 401) {
-      emitUnauthorized();
-    }
-    throw error;
-  }
 };
 
 export const apiClient = {
