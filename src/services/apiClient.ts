@@ -189,18 +189,7 @@ const request = async <T>(method: string, path: string, options: RequestOptions 
         if (refreshed) {
           const newToken = getStoredAccessToken();
           if (newToken) {
-            try {
-              return await request<T>(method, path, {
-                ...options,
-                accessToken: newToken,
-                suppressUnauthorizedEvent: true,
-              });
-            } catch (error) {
-              if (error instanceof ServiceError && error.status === 401) {
-                emitUnauthorized();
-              }
-              throw error;
-            }
+            return retryWithRefreshedToken<T>(method, path, { ...options, accessToken: newToken });
           }
         }
       }
@@ -211,6 +200,17 @@ const request = async <T>(method: string, path: string, options: RequestOptions 
   }
 
   return payload as T;
+};
+
+const retryWithRefreshedToken = async <T>(method: string, path: string, options: RequestOptions): Promise<T> => {
+  try {
+    return await request<T>(method, path, { ...options, suppressUnauthorizedEvent: true });
+  } catch (error) {
+    if (error instanceof ServiceError && error.status === 401) {
+      emitUnauthorized();
+    }
+    throw error;
+  }
 };
 
 export const apiClient = {
