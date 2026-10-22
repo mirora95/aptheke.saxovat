@@ -1,10 +1,10 @@
 const assert = require('node:assert/strict');
 const { after, before, beforeEach, test } = require('node:test');
 
-let server;
-let api;
-let auth;
-let unauthorizedEvents;
+let server = null;
+let api = null;
+let auth = null;
+let unauthorizedEvents = 0;
 
 before(async () => {
   const { createServer } = await import('vite');
@@ -54,12 +54,12 @@ const json = (status, body) => new Response(JSON.stringify(body), {
   status, headers: { 'Content-Type': 'application/json' },
 });
 
-for (const [status, code, events] of [
+[
   [403, 'FORBIDDEN', 0],
   [409, 'CONFLICT', 0],
   [500, 'UNKNOWN', 0],
   [401, 'UNAUTHORIZED', 1],
-]) {
+].forEach(([status, code, events]) => {
   test(`reports the retried ${status} response and emits ${events} logout events`, async (context) => {
     const responses = [
       json(401, { code: 'UNAUTHORIZED', message: 'Expired token' }),
@@ -67,10 +67,10 @@ for (const [status, code, events] of [
       json(status, { code, message: 'Retry failed', traceId: 'retry-trace', fieldErrors: { name: ['Retry detail'] } }),
     ];
     const calls = [];
-    context.mock.method(globalThis, 'fetch', async (url, options) => {
+    context.mock.method(globalThis, 'fetch', (url, options) => {
       calls.push({ url, authorization: options.headers instanceof Headers ? options.headers.get('Authorization') : null });
       assert.ok(responses.length, 'The request must not refresh repeatedly');
-      return responses.shift();
+      return Promise.resolve(responses.shift());
     });
 
     await assert.rejects(api.apiClient.get('/medicines'), (error) => {
@@ -90,16 +90,16 @@ for (const [status, code, events] of [
     assert.equal(calls[0].authorization, 'Bearer expired-token');
     assert.equal(calls[2].authorization, 'Bearer fresh-token');
   });
-}
+});
 
 test('reports a network failure on the retry without logging out', async (context) => {
   const responses = [
     json(401, { code: 'UNAUTHORIZED', message: 'Expired token' }),
     json(200, { tokens: { accessToken: 'fresh-token' } }),
   ];
-  const fetch = context.mock.method(globalThis, 'fetch', async () => {
-    if (responses.length) return responses.shift();
-    throw new TypeError('Connection lost');
+  const fetch = context.mock.method(globalThis, 'fetch', () => {
+    if (responses.length) return Promise.resolve(responses.shift());
+    return Promise.reject(new TypeError('Connection lost'));
   });
 
   await assert.rejects(api.apiClient.get('/medicines'), (error) => {
@@ -114,14 +114,14 @@ test('reports a network failure on the retry without logging out', async (contex
   assert.equal(fetch.mock.callCount(), 3);
 });
 
-for (const status of [200, 204]) {
+[200, 204].forEach((status) => {
   test(`returns a successful ${status} retry and preserves the request`, async (context) => {
     const responses = [
       json(401, { code: 'UNAUTHORIZED', message: 'Expired token' }),
       json(200, { tokens: { accessToken: 'fresh-token' } }),
       status === 204 ? new Response(null, { status }) : json(status, { saved: true }),
     ];
-    const fetch = context.mock.method(globalThis, 'fetch', async () => responses.shift());
+    const fetch = context.mock.method(globalThis, 'fetch', () => Promise.resolve(responses.shift()));
 
     const result = await api.apiClient.post('/example', { name: 'test' }, { query: { page: 2 } });
 
@@ -134,11 +134,11 @@ for (const status of [200, 204]) {
     assert.equal(options.body, JSON.stringify({ name: 'test' }));
     assert.equal(options.headers.get('Authorization'), 'Bearer fresh-token');
   });
-}
+});
 
 test('keeps unauthorized-event suppression for login requests', async (context) => {
-  const fetch = context.mock.method(globalThis, 'fetch', async () =>
-    json(401, { code: 'UNAUTHORIZED', message: 'Invalid credentials' }));
+  const fetch = context.mock.method(globalThis, 'fetch', () =>
+    Promise.resolve(json(401, { code: 'UNAUTHORIZED', message: 'Invalid credentials' })));
 
   await assert.rejects(api.apiClient.post('/auth/login', {}, { suppressUnauthorizedEvent: true }),
     error => error instanceof api.ServiceError && error.message === 'Invalid credentials');
@@ -148,8 +148,8 @@ test('keeps unauthorized-event suppression for login requests', async (context) 
 });
 
 test('logs out once when refreshing the token fails', async (context) => {
-  const fetch = context.mock.method(globalThis, 'fetch', async () =>
-    json(401, { code: 'UNAUTHORIZED', message: 'Session expired' }));
+  const fetch = context.mock.method(globalThis, 'fetch', () =>
+    Promise.resolve(json(401, { code: 'UNAUTHORIZED', message: 'Session expired' })));
 
   await assert.rejects(api.apiClient.get('/medicines'),
     error => error instanceof api.ServiceError && error.status === 401);
