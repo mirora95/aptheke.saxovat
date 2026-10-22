@@ -189,20 +189,17 @@ const request = async <T>(method: string, path: string, options: RequestOptions 
         if (refreshed) {
           const newToken = getStoredAccessToken();
           if (newToken) {
-            headers.set('Authorization', `Bearer ${newToken}`);
             try {
-              response = await fetch(buildUrl(path, options.query), {
-                method,
-                headers,
-                body: options.body === undefined ? undefined : isJsonBody ? JSON.stringify(options.body) : (options.body as BodyInit),
+              return await request<T>(method, path, {
+                ...options,
+                accessToken: newToken,
+                suppressUnauthorizedEvent: true,
               });
-              if (response.ok) {
-                const retryPayload = response.status !== 204 && response.headers.get('content-type')?.includes('application/json')
-                  ? await response.json() : null;
-                return retryPayload as T;
+            } catch (error) {
+              if (error instanceof ServiceError && error.status === 401) {
+                emitUnauthorized();
               }
-            } catch {
-              // fall through to unauthorized
+              throw error;
             }
           }
         }
