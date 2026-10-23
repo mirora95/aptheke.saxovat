@@ -6,7 +6,7 @@ Saxovat Pharmacy is a full-stack pharmacy management application with a React fr
 
 - Frontend: React 19, TypeScript, Vite, React Router, Tailwind CSS, lucide-react
 - Backend: ASP.NET Core, .NET 10, Entity Framework Core, PostgreSQL, JWT authentication
-- Tests: xUnit backend tests
+- Tests: xUnit backend tests and Node.js API client tests
 
 ## Project Structure
 
@@ -122,6 +122,12 @@ dotnet tool run dotnet-ef migrations add <MigrationName> --project src\Saxovat.I
 ```
 
 ## Tests
+
+Run the frontend API client tests (mocked requests; no backend or credentials needed):
+
+```powershell
+npm test
+```
 
 Run backend tests:
 

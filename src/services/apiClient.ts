@@ -147,7 +147,7 @@ const createServiceError = (
   );
 };
 
-const request = async <T>(method: string, path: string, options: RequestOptions = {}): Promise<T> => {
+const prepareRequestHeaders = (options: RequestOptions) => {
   const headers = new Headers({
     Accept: 'application/json',
   });
@@ -157,10 +157,36 @@ const request = async <T>(method: string, path: string, options: RequestOptions 
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
 
-  const isJsonBody = options.body !== undefined && options.body !== null && !(options.body instanceof FormData);
-  if (isJsonBody) {
-    headers.set('Content-Type', 'application/json');
-  }
+  return headers;
+};
+
+const prepareRequestBody = (body: unknown, headers: Headers): BodyInit | null | undefined => {
+  if (body === undefined) return undefined;
+  if (body === null) return null;
+  if (body instanceof FormData) return body;
+
+  headers.set('Content-Type', 'application/json');
+  return JSON.stringify(body);
+};
+
+const readResponsePayload = (response: Response) => {
+  if (response.status === 204) return null;
+  if (!response.headers.get('content-type')?.includes('application/json')) return null;
+  return response.json();
+};
+
+const refreshAccessToken = async () => {
+  const storedRefreshToken = getStoredRefreshToken();
+  if (!storedRefreshToken) return null;
+
+  requestRefreshPromise ??= performTokenRefresh(storedRefreshToken);
+  const refreshed = await requestRefreshPromise;
+  requestRefreshPromise = null;
+  return refreshed ? getStoredAccessToken() : null;
+};
+
+const request = async <T>(method: string, path: string, options: RequestOptions = {}): Promise<T> => {
+  const headers = prepareRequestHeaders(options);
 
   let response: Response;
 
@@ -168,7 +194,7 @@ const request = async <T>(method: string, path: string, options: RequestOptions 
     response = await fetch(buildUrl(path, options.query), {
       method,
       headers,
-      body: options.body === undefined ? undefined : isJsonBody ? JSON.stringify(options.body) : (options.body as BodyInit),
+      body: prepareRequestBody(options.body, headers),
     });
   } catch (error) {
     throw new ServiceError('NETWORK', error instanceof Error ? error.message : 'Network request failed', {
@@ -176,41 +202,34 @@ const request = async <T>(method: string, path: string, options: RequestOptions 
     });
   }
 
-  const hasJsonBody = response.status !== 204 && response.headers.get('content-type')?.includes('application/json');
-  const payload = hasJsonBody ? await response.json() : null;
+  const payload = await readResponsePayload(response);
 
   if (!response.ok) {
-    if (response.status === 401 && !options.suppressUnauthorizedEvent) {
-      const storedRefreshToken = getStoredRefreshToken();
-      if (storedRefreshToken) {
-        requestRefreshPromise ??= performTokenRefresh(storedRefreshToken);
-        const refreshed = await requestRefreshPromise;
-        requestRefreshPromise = null;
-        if (refreshed) {
-          const newToken = getStoredAccessToken();
-          if (newToken) {
-            headers.set('Authorization', `Bearer ${newToken}`);
-            try {
-              response = await fetch(buildUrl(path, options.query), {
-                method,
-                headers,
-                body: options.body === undefined ? undefined : isJsonBody ? JSON.stringify(options.body) : (options.body as BodyInit),
-              });
-              if (response.ok) {
-                const retryPayload = response.status !== 204 && response.headers.get('content-type')?.includes('application/json')
-                  ? await response.json() : null;
-                return retryPayload as T;
-              }
-            } catch {
-              // fall through to unauthorized
-            }
-          }
+    const retryWithRefreshedToken = async (accessToken: string): Promise<T> => {
+      try {
+        return await request<T>(method, path, {
+          ...options,
+          accessToken,
+          suppressUnauthorizedEvent: true,
+        });
+      } catch (error) {
+        if (error instanceof ServiceError && error.status === 401) {
+          emitUnauthorized();
         }
+        throw error;
       }
-      emitUnauthorized();
-    }
+    };
 
-    throw createServiceError(response, payload, response.statusText || 'Request failed');
+    const handleErrorResponse = async (): Promise<T> => {
+      if (response.status === 401 && !options.suppressUnauthorizedEvent) {
+        const newToken = await refreshAccessToken();
+        if (newToken) return retryWithRefreshedToken(newToken);
+        emitUnauthorized();
+      }
+
+      throw createServiceError(response, payload, response.statusText || 'Request failed');
+    };
+    return handleErrorResponse();
   }
 
   return payload as T;
