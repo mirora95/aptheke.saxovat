@@ -169,7 +169,7 @@ const prepareRequestBody = (body: unknown, headers: Headers): BodyInit | null | 
   return JSON.stringify(body);
 };
 
-const readResponsePayload = async (response: Response): Promise<unknown> => {
+const readResponsePayload = (response: Response) => {
   if (response.status === 204) return null;
   if (!response.headers.get('content-type')?.includes('application/json')) return null;
   return response.json();
