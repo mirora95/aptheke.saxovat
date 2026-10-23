@@ -157,3 +157,38 @@ test('logs out once when refreshing the token fails', async (context) => {
   assert.equal(unauthorizedEvents, 1);
   assert.equal(fetch.mock.callCount(), 2);
 });
+
+test('does not retry when no refresh token is stored', async (context) => {
+  localStorage.removeItem(auth.REFRESH_TOKEN_STORAGE_KEY);
+  const fetch = context.mock.method(globalThis, 'fetch', () =>
+    Promise.resolve(json(401, { code: 'UNAUTHORIZED', message: 'Session expired' })));
+
+  await assert.rejects(api.apiClient.get('/medicines'),
+    error => error instanceof api.ServiceError && error.status === 401);
+
+  assert.equal(unauthorizedEvents, 1);
+  assert.equal(fetch.mock.callCount(), 1);
+});
+
+test('shares a refresh between concurrent unauthorized requests', async (context) => {
+  let completeRefresh = null;
+  const pendingRefresh = new Promise(resolve => { completeRefresh = resolve; });
+  let refreshCalls = 0;
+  const fetch = context.mock.method(globalThis, 'fetch', (url, options) => {
+    if (new URL(url).pathname === '/auth/refresh') {
+      refreshCalls += 1;
+      return pendingRefresh;
+    }
+    if (options.headers.get('Authorization') === 'Bearer fresh-token') {
+      return Promise.resolve(json(200, { saved: true }));
+    }
+    return Promise.resolve(json(401, { code: 'UNAUTHORIZED', message: 'Expired token' }));
+  });
+
+  const requests = [api.apiClient.get('/medicines'), api.apiClient.get('/categories')];
+  completeRefresh(json(200, { tokens: { accessToken: 'fresh-token' } }));
+  assert.deepEqual(await Promise.all(requests), [{ saved: true }, { saved: true }]);
+  assert.equal(refreshCalls, 1);
+  assert.equal(fetch.mock.callCount(), 5);
+  assert.equal(unauthorizedEvents, 0);
+});

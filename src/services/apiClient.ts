@@ -147,7 +147,7 @@ const createServiceError = (
   );
 };
 
-const request = async <T>(method: string, path: string, options: RequestOptions = {}): Promise<T> => {
+const prepareRequestHeaders = (options: RequestOptions) => {
   const headers = new Headers({
     Accept: 'application/json',
   });
@@ -161,6 +161,22 @@ const request = async <T>(method: string, path: string, options: RequestOptions 
   if (isJsonBody) {
     headers.set('Content-Type', 'application/json');
   }
+
+  return { headers, isJsonBody };
+};
+
+const refreshAccessToken = async () => {
+  const storedRefreshToken = getStoredRefreshToken();
+  if (!storedRefreshToken) return null;
+
+  requestRefreshPromise ??= performTokenRefresh(storedRefreshToken);
+  const refreshed = await requestRefreshPromise;
+  requestRefreshPromise = null;
+  return refreshed ? getStoredAccessToken() : null;
+};
+
+const request = async <T>(method: string, path: string, options: RequestOptions = {}): Promise<T> => {
+  const { headers, isJsonBody } = prepareRequestHeaders(options);
 
   let response: Response;
 
@@ -182,27 +198,19 @@ const request = async <T>(method: string, path: string, options: RequestOptions 
   if (!response.ok) {
     const handleErrorResponse = async (): Promise<T> => {
       if (response.status === 401 && !options.suppressUnauthorizedEvent) {
-        const storedRefreshToken = getStoredRefreshToken();
-        if (storedRefreshToken) {
-          requestRefreshPromise ??= performTokenRefresh(storedRefreshToken);
-          const refreshed = await requestRefreshPromise;
-          requestRefreshPromise = null;
-          if (refreshed) {
-            const newToken = getStoredAccessToken();
-            if (newToken) {
-              try {
-                return await request<T>(method, path, {
-                  ...options,
-                  accessToken: newToken,
-                  suppressUnauthorizedEvent: true,
-                });
-              } catch (error) {
-                if (error instanceof ServiceError && error.status === 401) {
-                  emitUnauthorized();
-                }
-                throw error;
-              }
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          try {
+            return await request<T>(method, path, {
+              ...options,
+              accessToken: newToken,
+              suppressUnauthorizedEvent: true,
+            });
+          } catch (error) {
+            if (error instanceof ServiceError && error.status === 401) {
+              emitUnauthorized();
             }
+            throw error;
           }
         }
         emitUnauthorized();
