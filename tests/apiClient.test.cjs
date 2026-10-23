@@ -192,3 +192,18 @@ test('shares a refresh between concurrent unauthorized requests', async (context
   assert.equal(fetch.mock.callCount(), 5);
   assert.equal(unauthorizedEvents, 0);
 });
+
+
+[undefined, null, new FormData()].forEach((body) => {
+  test(`sends a non-JSON body without setting a JSON content type: ${String(body)}`, async (context) => {
+    const fetch = context.mock.method(globalThis, 'fetch', () =>
+      Promise.resolve(new Response(null, { status: 204 })));
+
+    assert.equal(await api.apiClient.post('/example', body), null);
+    const options = fetch.mock.calls[0].arguments[1];
+    assert.equal(options.body, body);
+    assert.equal(options.headers.get('Content-Type'), null);
+    assert.equal(options.headers.get('Accept'), 'application/json');
+    assert.equal(options.headers.get('Authorization'), 'Bearer expired-token');
+  });
+});

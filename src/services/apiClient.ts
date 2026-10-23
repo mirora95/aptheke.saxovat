@@ -157,12 +157,22 @@ const prepareRequestHeaders = (options: RequestOptions) => {
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
 
-  const isJsonBody = options.body !== undefined && options.body !== null && !(options.body instanceof FormData);
-  if (isJsonBody) {
-    headers.set('Content-Type', 'application/json');
-  }
+  return headers;
+};
 
-  return { headers, isJsonBody };
+const prepareRequestBody = (body: unknown, headers: Headers): BodyInit | null | undefined => {
+  if (body === undefined) return undefined;
+  if (body === null) return null;
+  if (body instanceof FormData) return body;
+
+  headers.set('Content-Type', 'application/json');
+  return JSON.stringify(body);
+};
+
+const readResponsePayload = async (response: Response): Promise<unknown> => {
+  if (response.status === 204) return null;
+  if (!response.headers.get('content-type')?.includes('application/json')) return null;
+  return response.json();
 };
 
 const refreshAccessToken = async () => {
@@ -176,7 +186,7 @@ const refreshAccessToken = async () => {
 };
 
 const request = async <T>(method: string, path: string, options: RequestOptions = {}): Promise<T> => {
-  const { headers, isJsonBody } = prepareRequestHeaders(options);
+  const headers = prepareRequestHeaders(options);
 
   let response: Response;
 
@@ -184,7 +194,7 @@ const request = async <T>(method: string, path: string, options: RequestOptions 
     response = await fetch(buildUrl(path, options.query), {
       method,
       headers,
-      body: options.body === undefined ? undefined : isJsonBody ? JSON.stringify(options.body) : (options.body as BodyInit),
+      body: prepareRequestBody(options.body, headers),
     });
   } catch (error) {
     throw new ServiceError('NETWORK', error instanceof Error ? error.message : 'Network request failed', {
@@ -192,27 +202,28 @@ const request = async <T>(method: string, path: string, options: RequestOptions 
     });
   }
 
-  const hasJsonBody = response.status !== 204 && response.headers.get('content-type')?.includes('application/json');
-  const payload = hasJsonBody ? await response.json() : null;
+  const payload = await readResponsePayload(response);
 
   if (!response.ok) {
+    const retryWithRefreshedToken = async (accessToken: string): Promise<T> => {
+      try {
+        return await request<T>(method, path, {
+          ...options,
+          accessToken,
+          suppressUnauthorizedEvent: true,
+        });
+      } catch (error) {
+        if (error instanceof ServiceError && error.status === 401) {
+          emitUnauthorized();
+        }
+        throw error;
+      }
+    };
+
     const handleErrorResponse = async (): Promise<T> => {
       if (response.status === 401 && !options.suppressUnauthorizedEvent) {
         const newToken = await refreshAccessToken();
-        if (newToken) {
-          try {
-            return await request<T>(method, path, {
-              ...options,
-              accessToken: newToken,
-              suppressUnauthorizedEvent: true,
-            });
-          } catch (error) {
-            if (error instanceof ServiceError && error.status === 401) {
-              emitUnauthorized();
-            }
-            throw error;
-          }
-        }
+        if (newToken) return retryWithRefreshedToken(newToken);
         emitUnauthorized();
       }
 
