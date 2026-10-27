@@ -54,6 +54,27 @@ const json = (status, body) => new Response(JSON.stringify(body), {
   status, headers: { 'Content-Type': 'application/json' },
 });
 
+[undefined, ''].forEach(refreshToken => {
+  test(`does not refresh with the previous session's token when the new token is ${String(refreshToken)}`, async (context) => {
+    const session = auth.readStoredAuthSession();
+    auth.writeStoredAuthSession({
+      ...session,
+      user: { ...session.user, id: 'another-user' },
+      tokens: { accessToken: 'new-session-token', tokenType: 'Bearer', refreshToken },
+    });
+    const fetch = context.mock.method(globalThis, 'fetch', () => Promise.resolve(
+      json(401, { code: 'UNAUTHORIZED', message: 'Session expired' }),
+    ));
+
+    await assert.rejects(api.apiClient.get('/medicines'), { code: 'UNAUTHORIZED', status: 401 });
+
+    assert.equal(auth.getStoredRefreshToken(), null);
+    assert.equal(auth.getStoredAccessToken(), 'new-session-token');
+    assert.equal(fetch.mock.callCount(), 1);
+    assert.equal(unauthorizedEvents, 1);
+  });
+});
+
 [
   [403, 'FORBIDDEN', 0],
   [409, 'CONFLICT', 0],
@@ -85,6 +106,7 @@ const json = (status, body) => new Response(JSON.stringify(body), {
 
     assert.equal(unauthorizedEvents, events);
     assert.equal(auth.getStoredAccessToken(), 'fresh-token');
+    assert.equal(auth.getStoredRefreshToken(), 'rotated-refresh-token');
     assert.equal(calls.length, 3);
     assert.equal(new URL(calls[1].url).pathname, '/auth/refresh');
     assert.equal(calls[0].authorization, 'Bearer expired-token');

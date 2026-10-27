@@ -45,6 +45,8 @@ export const writeStoredAuthSession = (session: AuthSession) => {
   localStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(session));
   if (session.tokens.refreshToken) {
     localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, session.tokens.refreshToken);
+  } else {
+    localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
   }
 };
 
