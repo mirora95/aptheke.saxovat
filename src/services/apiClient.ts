@@ -172,7 +172,11 @@ const prepareRequestBody = (body: unknown, headers: Headers): BodyInit | null | 
 const readResponsePayload = (response: Response) => {
   if (response.status === 204) return null;
   if (!response.headers.get('content-type')?.includes('application/json')) return null;
-  return response.json();
+
+  return response.json().catch((error: unknown) => {
+    if (!response.ok && error instanceof SyntaxError) return null;
+    throw error;
+  });
 };
 
 const refreshAccessToken = async () => {
