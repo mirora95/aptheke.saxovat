@@ -229,3 +229,96 @@ test('shares a refresh between concurrent unauthorized requests', async (context
     assert.equal(options.headers.get('Authorization'), 'Bearer expired-token');
   });
 });
+
+['', '{invalid'].forEach((body) => {
+  [
+    [400, 'VALIDATION'],
+    [401, 'UNAUTHORIZED'],
+    [403, 'FORBIDDEN'],
+    [500, 'UNKNOWN'],
+  ].forEach(([status, code]) => {
+    test(`preserves HTTP ${status} when its JSON error body is ${JSON.stringify(body)}`, async (context) => {
+      localStorage.removeItem(auth.REFRESH_TOKEN_STORAGE_KEY);
+      const fetch = context.mock.method(globalThis, 'fetch', () => Promise.resolve(new Response(body, {
+        status, statusText: 'Request denied', headers: { 'Content-Type': 'application/json' },
+      })));
+
+      await assert.rejects(api.apiClient.get('/medicines'), (error) => {
+        assert.ok(error instanceof api.ServiceError);
+        assert.equal(error.code, code);
+        assert.equal(error.status, status);
+        assert.equal(error.message, 'Request denied');
+        return true;
+      });
+
+      assert.equal(fetch.mock.callCount(), 1);
+      assert.equal(unauthorizedEvents, status === 401 ? 1 : 0);
+    });
+  });
+
+  test(`refreshes and retries a 401 with JSON body ${JSON.stringify(body)}`, async (context) => {
+    const responses = [
+      new Response(body, { status: 401, headers: { 'Content-Type': 'application/json' } }),
+      json(200, { tokens: { accessToken: 'fresh-token' } }),
+      json(200, { saved: true }),
+    ];
+    const fetch = context.mock.method(globalThis, 'fetch', () => Promise.resolve(responses.shift()));
+
+    assert.deepEqual(await api.apiClient.get('/medicines'), { saved: true });
+
+    assert.equal(fetch.mock.callCount(), 3);
+    assert.equal(new URL(fetch.mock.calls[1].arguments[0]).pathname, '/auth/refresh');
+    assert.equal(fetch.mock.calls[2].arguments[1].headers.get('Authorization'), 'Bearer fresh-token');
+    assert.equal(unauthorizedEvents, 0);
+  });
+});
+
+test('reports a malformed JSON 401 retry and logs out once', async (context) => {
+  const responses = [
+    json(401, { code: 'UNAUTHORIZED', message: 'Expired token' }),
+    json(200, { tokens: { accessToken: 'fresh-token' } }),
+    new Response('{invalid', { status: 401, headers: { 'Content-Type': 'application/json' } }),
+  ];
+  const fetch = context.mock.method(globalThis, 'fetch', () => Promise.resolve(responses.shift()));
+
+  await assert.rejects(api.apiClient.get('/medicines'),
+    error => error instanceof api.ServiceError && error.status === 401 && error.code === 'UNAUTHORIZED');
+
+  assert.equal(fetch.mock.callCount(), 3);
+  assert.equal(unauthorizedEvents, 1);
+});
+
+test('keeps login logout-event suppression when the JSON error body is malformed', async (context) => {
+  const fetch = context.mock.method(globalThis, 'fetch', () => Promise.resolve(new Response('{invalid', {
+    status: 401, headers: { 'Content-Type': 'application/json' },
+  })));
+
+  await assert.rejects(api.apiClient.post('/auth/login', {}, { suppressUnauthorizedEvent: true }),
+    error => error instanceof api.ServiceError && error.status === 401);
+
+  assert.equal(fetch.mock.callCount(), 1);
+  assert.equal(unauthorizedEvents, 0);
+});
+
+test('rejects malformed JSON in a successful response', async (context) => {
+  context.mock.method(globalThis, 'fetch', () => Promise.resolve(new Response('{invalid', {
+    status: 200, headers: { 'Content-Type': 'application/json' },
+  })));
+
+  await assert.rejects(api.apiClient.get('/medicines'), SyntaxError);
+
+  assert.equal(unauthorizedEvents, 0);
+});
+
+test('propagates error-body stream failures without refreshing', async (context) => {
+  const failure = new TypeError('Response stream failed');
+  const body = new ReadableStream({ start(controller) { controller.error(failure); } });
+  const fetch = context.mock.method(globalThis, 'fetch', () => Promise.resolve(new Response(body, {
+    status: 401, headers: { 'Content-Type': 'application/json' },
+  })));
+
+  await assert.rejects(api.apiClient.get('/medicines'), error => error === failure);
+
+  assert.equal(fetch.mock.callCount(), 1);
+  assert.equal(unauthorizedEvents, 0);
+});

@@ -169,10 +169,16 @@ const prepareRequestBody = (body: unknown, headers: Headers): BodyInit | null | 
   return JSON.stringify(body);
 };
 
-const readResponsePayload = (response: Response) => {
+const readResponsePayload = async (response: Response) => {
   if (response.status === 204) return null;
   if (!response.headers.get('content-type')?.includes('application/json')) return null;
-  return response.json();
+
+  try {
+    return await response.json();
+  } catch (error) {
+    if (!response.ok && error instanceof SyntaxError) return null;
+    throw error;
+  }
 };
 
 const refreshAccessToken = async () => {
