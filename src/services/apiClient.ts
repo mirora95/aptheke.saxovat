@@ -169,16 +169,14 @@ const prepareRequestBody = (body: unknown, headers: Headers): BodyInit | null | 
   return JSON.stringify(body);
 };
 
-const readResponsePayload = async (response: Response) => {
+const readResponsePayload = (response: Response) => {
   if (response.status === 204) return null;
   if (!response.headers.get('content-type')?.includes('application/json')) return null;
 
-  try {
-    return await response.json();
-  } catch (error) {
+  return response.json().catch((error: unknown) => {
     if (!response.ok && error instanceof SyntaxError) return null;
     throw error;
-  }
+  });
 };
 
 const refreshAccessToken = async () => {
