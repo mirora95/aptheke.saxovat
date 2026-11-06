@@ -10,6 +10,9 @@ const getApiBaseUrl = () => {
   return configuredBaseUrl && configuredBaseUrl.length > 0 ? configuredBaseUrl : 'http://localhost:5062';
 };
 
+const isUsableAccessToken = (value: unknown) =>
+  typeof value === 'string' && value.trim().length > 0;
+
 const performTokenRefresh = async (refreshToken: string): Promise<boolean> => {
   try {
     const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
@@ -21,6 +24,10 @@ const performTokenRefresh = async (refreshToken: string): Promise<boolean> => {
     if (!response.ok) return false;
 
     const data = await response.json() as { tokens: { accessToken: string; refreshToken?: string; expiresAt?: string } };
+    if (!isUsableAccessToken(data?.tokens?.accessToken)) {
+      return false;
+    }
+
     const session = readStoredAuthSession();
     if (session) {
       writeStoredAuthSession({ ...session, tokens: { ...session.tokens, ...data.tokens } });
