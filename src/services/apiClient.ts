@@ -21,6 +21,10 @@ const performTokenRefresh = async (refreshToken: string): Promise<boolean> => {
     if (!response.ok) return false;
 
     const data = await response.json() as { tokens: { accessToken: string; refreshToken?: string; expiresAt?: string } };
+    if (typeof data?.tokens?.accessToken !== 'string' || !data.tokens.accessToken.trim()) {
+      return false;
+    }
+
     const session = readStoredAuthSession();
     if (session) {
       writeStoredAuthSession({ ...session, tokens: { ...session.tokens, ...data.tokens } });

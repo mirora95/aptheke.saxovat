@@ -180,6 +180,57 @@ test('logs out once when refreshing the token fails', async (context) => {
   assert.equal(fetch.mock.callCount(), 2);
 });
 
+[
+  null,
+  {},
+  { tokens: null },
+  { tokens: {} },
+  { tokens: { accessToken: null, refreshToken: 'rotated-refresh-token' } },
+  { tokens: { accessToken: 42, refreshToken: 'rotated-refresh-token' } },
+  { tokens: { accessToken: '', refreshToken: 'rotated-refresh-token' } },
+  { tokens: { accessToken: ' \t\n', refreshToken: 'rotated-refresh-token' } },
+].forEach((payload) => {
+  test(`rejects an unusable refresh response without changing stored tokens: ${JSON.stringify(payload)}`, async (context) => {
+    const storedSession = localStorage.getItem(auth.AUTH_SESSION_STORAGE_KEY);
+    const refreshToken = auth.getStoredRefreshToken();
+    const fetch = context.mock.method(globalThis, 'fetch', (url) => Promise.resolve(
+      new URL(url).pathname === '/auth/refresh'
+        ? json(200, payload)
+        : json(401, { code: 'UNAUTHORIZED', message: 'Expired token' }),
+    ));
+
+    await assert.rejects(api.apiClient.get('/medicines'),
+      error => error instanceof api.ServiceError && error.status === 401 && error.message === 'Expired token');
+
+    assert.equal(fetch.mock.callCount(), 2);
+    assert.equal(localStorage.getItem(auth.AUTH_SESSION_STORAGE_KEY), storedSession);
+    assert.equal(auth.getStoredRefreshToken(), refreshToken);
+    assert.equal(unauthorizedEvents, 1);
+  });
+});
+
+test('stores a valid rotated token response and preserves the user', async (context) => {
+  const session = auth.readStoredAuthSession();
+  const tokens = {
+    accessToken: 'fresh-token', refreshToken: 'rotated-refresh-token',
+    tokenType: 'Bearer', expiresAt: '2026-11-06T12:00:00Z',
+  };
+  const responses = [
+    json(401, { code: 'UNAUTHORIZED', message: 'Expired token' }),
+    json(200, { tokens }),
+    json(200, { saved: true }),
+  ];
+  const fetch = context.mock.method(globalThis, 'fetch', () => Promise.resolve(responses.shift()));
+
+  assert.deepEqual(await api.apiClient.get('/medicines'), { saved: true });
+
+  assert.deepEqual(auth.readStoredAuthSession(), { ...session, tokens });
+  assert.equal(auth.getStoredRefreshToken(), tokens.refreshToken);
+  assert.equal(fetch.mock.calls[2].arguments[1].headers.get('Authorization'), 'Bearer fresh-token');
+  assert.equal(fetch.mock.callCount(), 3);
+  assert.equal(unauthorizedEvents, 0);
+});
+
 test('does not retry when no refresh token is stored', async (context) => {
   localStorage.removeItem(auth.REFRESH_TOKEN_STORAGE_KEY);
   const fetch = context.mock.method(globalThis, 'fetch', () =>
