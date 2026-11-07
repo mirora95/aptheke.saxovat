@@ -1,9 +1,9 @@
 import type { ApiErrorResponse, ApiListResponse } from '../types';
-import { getStoredAccessToken, getStoredRefreshToken, readStoredAuthSession, writeStoredAuthSession } from './authSession';
+import { getAuthSessionVersion, getStoredAccessToken, getStoredRefreshToken, writeRefreshedAuthTokens } from './authSession';
 
 export const AUTH_UNAUTHORIZED_EVENT = 'saxovat:auth-unauthorized';
 
-let requestRefreshPromise: Promise<boolean> | null = null;
+let requestRefresh: { sessionVersion: number | null; promise: Promise<boolean> } | null = null;
 
 const getApiBaseUrl = () => {
   const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
@@ -13,7 +13,7 @@ const getApiBaseUrl = () => {
 const isUsableAccessToken = (value: unknown) =>
   typeof value === 'string' && value.trim().length > 0;
 
-const performTokenRefresh = async (refreshToken: string): Promise<boolean> => {
+const performTokenRefresh = async (refreshToken: string, sessionVersion: number | null): Promise<boolean> => {
   try {
     const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
       method: 'POST',
@@ -28,11 +28,7 @@ const performTokenRefresh = async (refreshToken: string): Promise<boolean> => {
       return false;
     }
 
-    const session = readStoredAuthSession();
-    if (session) {
-      writeStoredAuthSession({ ...session, tokens: { ...session.tokens, ...data.tokens } });
-    }
-    return true;
+    return writeRefreshedAuthTokens(sessionVersion, data.tokens);
   } catch {
     return false;
   }
@@ -79,6 +75,11 @@ type RequestOptions = {
   suppressUnauthorizedEvent?: boolean;
 };
 
+const getRequestSessionVersion = (options: RequestOptions) =>
+  options.accessToken != null && options.accessToken !== getStoredAccessToken()
+    ? null
+    : getAuthSessionVersion();
+
 const buildUrl = (path: string, query?: Record<string, unknown>) => {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const url = new URL(normalizedPath, `${getApiBaseUrl().replace(/\/+$/, '')}/`);
@@ -116,8 +117,8 @@ const isApiErrorResponse = (value: unknown): value is ApiErrorResponse => {
   );
 };
 
-const emitUnauthorized = () => {
-  if (typeof window !== 'undefined') {
+const emitUnauthorized = (sessionVersion: number | null) => {
+  if (typeof window !== 'undefined' && getAuthSessionVersion() === sessionVersion) {
     window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT));
   }
 };
@@ -186,17 +187,26 @@ const readResponsePayload = (response: Response) => {
   });
 };
 
-const refreshAccessToken = async () => {
+const getSessionRefresh = (sessionVersion: number | null) => {
   const storedRefreshToken = getStoredRefreshToken();
-  if (!storedRefreshToken) return null;
+  if (!storedRefreshToken || getAuthSessionVersion() !== sessionVersion) return null;
 
-  requestRefreshPromise ??= performTokenRefresh(storedRefreshToken);
-  const refreshed = await requestRefreshPromise;
-  requestRefreshPromise = null;
-  return refreshed ? getStoredAccessToken() : null;
+  if (requestRefresh?.sessionVersion !== sessionVersion) {
+    requestRefresh = { sessionVersion, promise: performTokenRefresh(storedRefreshToken, sessionVersion) };
+  }
+  return requestRefresh;
+};
+
+const refreshAccessToken = async (sessionVersion: number | null) => {
+  const refresh = getSessionRefresh(sessionVersion);
+  if (!refresh) return null;
+  const refreshed = await refresh.promise;
+  if (requestRefresh === refresh) requestRefresh = null;
+  return refreshed && getAuthSessionVersion() === sessionVersion ? getStoredAccessToken() : null;
 };
 
 const request = async <T>(method: string, path: string, options: RequestOptions = {}): Promise<T> => {
+  const sessionVersion = getRequestSessionVersion(options);
   const headers = prepareRequestHeaders(options);
 
   let response: Response;
@@ -216,7 +226,9 @@ const request = async <T>(method: string, path: string, options: RequestOptions 
   const payload = await readResponsePayload(response);
 
   if (!response.ok) {
+    const responseError = () => createServiceError(response, payload, response.statusText || 'Request failed');
     const retryWithRefreshedToken = async (accessToken: string): Promise<T> => {
+      if (getAuthSessionVersion() !== sessionVersion) throw responseError();
       try {
         return await request<T>(method, path, {
           ...options,
@@ -225,7 +237,7 @@ const request = async <T>(method: string, path: string, options: RequestOptions 
         });
       } catch (error) {
         if (error instanceof ServiceError && error.status === 401) {
-          emitUnauthorized();
+          emitUnauthorized(sessionVersion);
         }
         throw error;
       }
@@ -233,12 +245,12 @@ const request = async <T>(method: string, path: string, options: RequestOptions 
 
     const handleErrorResponse = async (): Promise<T> => {
       if (response.status === 401 && !options.suppressUnauthorizedEvent) {
-        const newToken = await refreshAccessToken();
+        const newToken = await refreshAccessToken(sessionVersion);
         if (newToken) return retryWithRefreshedToken(newToken);
-        emitUnauthorized();
+        emitUnauthorized(sessionVersion);
       }
 
-      throw createServiceError(response, payload, response.statusText || 'Request failed');
+      throw responseError();
     };
     return handleErrorResponse();
   }

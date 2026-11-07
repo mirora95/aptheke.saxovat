@@ -373,3 +373,204 @@ test('propagates error-body stream failures without refreshing', async (context)
   assert.equal(fetch.mock.callCount(), 1);
   assert.equal(unauthorizedEvents, 0);
 });
+
+
+const deferred = () => {
+  let resolve = null;
+  const promise = new Promise(complete => { resolve = complete; });
+  return { promise, resolve };
+};
+
+[200, 401].flatMap(refreshStatus => ['replacement-user', 'test-user'].flatMap(userId =>
+  ['app', 'external storage'].map(writer => ({ refreshStatus, userId, writer }))
+)).forEach(({ refreshStatus, userId, writer }) => {
+  test(`ignores a pending refresh ${refreshStatus} after ${writer} login for ${userId}`, async (context) => {
+    const started = deferred();
+    const refreshed = deferred();
+    const replacement = {
+      ...auth.readStoredAuthSession(),
+      user: { ...auth.readStoredAuthSession().user, id: userId },
+      tokens: { accessToken: 'replacement-access', refreshToken: 'replacement-refresh', tokenType: 'Bearer' },
+    };
+    window.addEventListener(api.AUTH_UNAUTHORIZED_EVENT, auth.clearStoredAuthSession);
+    const fetch = context.mock.method(globalThis, 'fetch', (url, options) => {
+      if (new URL(url).pathname === '/auth/refresh') {
+        started.resolve();
+        return refreshed.promise;
+      }
+      return Promise.resolve(options.headers.get('Authorization') === 'Bearer expired-token'
+        ? json(401, { code: 'UNAUTHORIZED', message: 'Old request expired' })
+        : json(200, { saved: true }));
+    });
+    const pending = api.apiClient.get('/medicines');
+    await started.promise;
+    if (writer === 'app') {
+      auth.clearStoredAuthSession();
+      auth.writeStoredAuthSession(replacement);
+    } else {
+      localStorage.setItem(auth.AUTH_SESSION_STORAGE_KEY, JSON.stringify(replacement));
+      localStorage.setItem(auth.REFRESH_TOKEN_STORAGE_KEY, replacement.tokens.refreshToken);
+    }
+    refreshed.resolve(json(refreshStatus, refreshStatus === 200
+      ? { tokens: { accessToken: 'old-rotated-access', refreshToken: 'old-rotated-refresh' } }
+      : { code: 'UNAUTHORIZED', message: 'Old refresh expired' }));
+    const [result] = await Promise.allSettled([pending]);
+
+    assert.deepEqual(auth.readStoredAuthSession(), replacement);
+    assert.equal(auth.getStoredRefreshToken(), replacement.tokens.refreshToken);
+    assert.equal(unauthorizedEvents, 0);
+    assert.equal(fetch.mock.callCount(), 2, 'The old request must not replay under the replacement login');
+    assert.equal(result.status, 'rejected');
+    assert.ok(result.reason instanceof api.ServiceError && result.reason.status === 401);
+  });
+});
+
+test('does not refresh or sign out a replacement login for a late original 401', async (context) => {
+  const response = deferred();
+  const replacement = {
+    ...auth.readStoredAuthSession(),
+    user: { ...auth.readStoredAuthSession().user, id: 'replacement-user' },
+    tokens: { accessToken: 'replacement-access', refreshToken: 'replacement-refresh', tokenType: 'Bearer' },
+  };
+  window.addEventListener(api.AUTH_UNAUTHORIZED_EVENT, auth.clearStoredAuthSession);
+  const fetch = context.mock.method(globalThis, 'fetch', (_url, _options) =>
+    fetch.mock.callCount() === 1 ? response.promise : Promise.resolve(json(401, { code: 'UNAUTHORIZED', message: 'Expired' })));
+  const pending = api.apiClient.get('/medicines');
+  auth.writeStoredAuthSession(replacement);
+  response.resolve(json(401, { code: 'UNAUTHORIZED', message: 'Old request expired' }));
+  const [result] = await Promise.allSettled([pending]);
+
+  assert.deepEqual(auth.readStoredAuthSession(), replacement);
+  assert.equal(unauthorizedEvents, 0);
+  assert.equal(fetch.mock.callCount(), 1);
+  assert.equal(result.status, 'rejected');
+});
+
+test('does not sign out a replacement login for a late retried 401', async (context) => {
+  const retryStarted = deferred();
+  const retried = deferred();
+  const replacement = {
+    ...auth.readStoredAuthSession(),
+    user: { ...auth.readStoredAuthSession().user, id: 'replacement-user' },
+    tokens: { accessToken: 'replacement-access', refreshToken: 'replacement-refresh', tokenType: 'Bearer' },
+  };
+  window.addEventListener(api.AUTH_UNAUTHORIZED_EVENT, auth.clearStoredAuthSession);
+  context.mock.method(globalThis, 'fetch', (url, options) => {
+    if (new URL(url).pathname === '/auth/refresh') return Promise.resolve(json(200, { tokens: { accessToken: 'rotated-access' } }));
+    if (options.headers.get('Authorization') === 'Bearer rotated-access') {
+      retryStarted.resolve();
+      return retried.promise;
+    }
+    return Promise.resolve(json(401, { code: 'UNAUTHORIZED', message: 'Expired' }));
+  });
+  const pending = api.apiClient.get('/medicines');
+  await retryStarted.promise;
+  auth.writeStoredAuthSession(replacement);
+  retried.resolve(json(401, { code: 'UNAUTHORIZED', message: 'Old retry expired' }));
+  const [result] = await Promise.allSettled([pending]);
+
+  assert.deepEqual(auth.readStoredAuthSession(), replacement);
+  assert.equal(unauthorizedEvents, 0);
+  assert.equal(result.status, 'rejected');
+});
+
+
+[200, 401].forEach(refreshStatus => {
+  test(`does not revive or notify a logged-out session after refresh ${refreshStatus}`, async (context) => {
+    const started = deferred();
+    const refreshed = deferred();
+    context.mock.method(globalThis, 'fetch', url => {
+      if (new URL(url).pathname === '/auth/refresh') {
+        started.resolve();
+        return refreshed.promise;
+      }
+      return Promise.resolve(json(401, { code: 'UNAUTHORIZED', message: 'Expired' }));
+    });
+    const pending = api.apiClient.get('/medicines');
+    await started.promise;
+    auth.clearStoredAuthSession();
+    refreshed.resolve(json(refreshStatus, { tokens: { accessToken: 'old-rotated-access' } }));
+    const [result] = await Promise.allSettled([pending]);
+
+    assert.equal(auth.readStoredAuthSession(), null);
+    assert.equal(auth.getStoredRefreshToken(), null);
+    assert.equal(unauthorizedEvents, 0);
+    assert.equal(result.status, 'rejected');
+  });
+});
+
+test('does not mutate the stored session when an explicit different token is rejected', async (context) => {
+  const session = auth.readStoredAuthSession();
+  window.addEventListener(api.AUTH_UNAUTHORIZED_EVENT, auth.clearStoredAuthSession);
+  const fetch = context.mock.method(globalThis, 'fetch', () => Promise.resolve(json(401, { code: 'UNAUTHORIZED', message: 'Expired' })));
+
+  await assert.rejects(api.apiClient.get('/auth/me', { accessToken: 'another-session-access' }),
+    error => error instanceof api.ServiceError && error.status === 401);
+
+  assert.deepEqual(auth.readStoredAuthSession(), session);
+  assert.equal(unauthorizedEvents, 0);
+  assert.equal(fetch.mock.callCount(), 1);
+});
+
+test('a new login refreshes independently and old completion cannot clear its shared refresh', async (context) => {
+  const started = deferred();
+  const oldRefresh = deferred();
+  const newRefresh = deferred();
+  let newRefreshCalls = 0;
+  context.mock.method(globalThis, 'fetch', (url, options) => {
+    if (new URL(url).pathname === '/auth/refresh') {
+      if (JSON.parse(options.body).refreshToken === 'test-refresh-token') {
+        started.resolve();
+        return oldRefresh.promise;
+      }
+      newRefreshCalls += 1;
+      return newRefresh.promise;
+    }
+    return Promise.resolve(options.headers.get('Authorization') === 'Bearer new-rotated-access'
+      ? json(200, { saved: true })
+      : json(401, { code: 'UNAUTHORIZED', message: 'Expired' }));
+  });
+  const oldRequest = Promise.allSettled([api.apiClient.get('/medicines')]);
+  await started.promise;
+  auth.writeStoredAuthSession({
+    ...auth.readStoredAuthSession(),
+    user: { ...auth.readStoredAuthSession().user, id: 'replacement-user' },
+    tokens: { accessToken: 'replacement-access', refreshToken: 'replacement-refresh', tokenType: 'Bearer' },
+  });
+  const newRequest = Promise.allSettled([api.apiClient.get('/categories')]);
+  // Drain the request/JSON microtasks without a timing delay.
+  await new Promise(setImmediate);
+  oldRefresh.resolve(json(200, { tokens: { accessToken: 'old-rotated-access' } }));
+  const [oldResult] = await oldRequest;
+  const anotherNewRequest = Promise.allSettled([api.apiClient.get('/medicines')]);
+  await new Promise(setImmediate);
+  newRefresh.resolve(json(200, { tokens: { accessToken: 'new-rotated-access', refreshToken: 'new-rotated-refresh' } }));
+  const results = (await Promise.all([newRequest, anotherNewRequest])).flat();
+
+  assert.equal(oldResult.status, 'rejected');
+  assert.ok(results.every(result => result.status === 'fulfilled'));
+  assert.equal(newRefreshCalls, 1);
+  assert.equal(auth.getStoredAccessToken(), 'new-rotated-access');
+  assert.equal(auth.readStoredAuthSession().user.id, 'replacement-user');
+  assert.equal(unauthorizedEvents, 0);
+});
+
+test('keeps a late original 401 retry working after another request rotated the same session', async (context) => {
+  const slow = deferred();
+  let firstSlow = true;
+  context.mock.method(globalThis, 'fetch', (url, options) => {
+    const path = new URL(url).pathname;
+    if (path === '/auth/refresh') return Promise.resolve(json(200, { tokens: { accessToken: 'fresh-token', refreshToken: 'rotated-refresh' } }));
+    if (path === '/slow' && firstSlow) { firstSlow = false; return slow.promise; }
+    return Promise.resolve(options.headers.get('Authorization') === 'Bearer fresh-token'
+      ? json(200, { saved: true })
+      : json(401, { code: 'UNAUTHORIZED', message: 'Expired' }));
+  });
+  const slowRequest = api.apiClient.get('/slow');
+  assert.deepEqual(await api.apiClient.get('/fast'), { saved: true });
+  slow.resolve(json(401, { code: 'UNAUTHORIZED', message: 'Expired' }));
+
+  assert.deepEqual(await slowRequest, { saved: true });
+  assert.equal(auth.readStoredAuthSession().user.id, 'test-user');
+  assert.equal(unauthorizedEvents, 0);
+});
