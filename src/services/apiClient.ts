@@ -75,6 +75,11 @@ type RequestOptions = {
   suppressUnauthorizedEvent?: boolean;
 };
 
+const getRequestSessionVersion = (options: RequestOptions) =>
+  options.accessToken != null && options.accessToken !== getStoredAccessToken()
+    ? null
+    : getAuthSessionVersion();
+
 const buildUrl = (path: string, query?: Record<string, unknown>) => {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const url = new URL(normalizedPath, `${getApiBaseUrl().replace(/\/+$/, '')}/`);
@@ -201,9 +206,7 @@ const refreshAccessToken = async (sessionVersion: number | null) => {
 };
 
 const request = async <T>(method: string, path: string, options: RequestOptions = {}): Promise<T> => {
-  const sessionVersion = options.accessToken != null && options.accessToken !== getStoredAccessToken()
-    ? null
-    : getAuthSessionVersion();
+  const sessionVersion = getRequestSessionVersion(options);
   const headers = prepareRequestHeaders(options);
 
   let response: Response;
@@ -223,7 +226,9 @@ const request = async <T>(method: string, path: string, options: RequestOptions 
   const payload = await readResponsePayload(response);
 
   if (!response.ok) {
+    const responseError = () => createServiceError(response, payload, response.statusText || 'Request failed');
     const retryWithRefreshedToken = async (accessToken: string): Promise<T> => {
+      if (getAuthSessionVersion() !== sessionVersion) throw responseError();
       try {
         return await request<T>(method, path, {
           ...options,
@@ -241,11 +246,11 @@ const request = async <T>(method: string, path: string, options: RequestOptions 
     const handleErrorResponse = async (): Promise<T> => {
       if (response.status === 401 && !options.suppressUnauthorizedEvent) {
         const newToken = await refreshAccessToken(sessionVersion);
-        if (newToken && getAuthSessionVersion() === sessionVersion) return retryWithRefreshedToken(newToken);
+        if (newToken) return retryWithRefreshedToken(newToken);
         emitUnauthorized(sessionVersion);
       }
 
-      throw createServiceError(response, payload, response.statusText || 'Request failed');
+      throw responseError();
     };
     return handleErrorResponse();
   }

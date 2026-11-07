@@ -376,7 +376,7 @@ test('propagates error-body stream failures without refreshing', async (context)
 
 
 const deferred = () => {
-  let resolve;
+  let resolve = null;
   const promise = new Promise(complete => { resolve = complete; });
   return { promise, resolve };
 };
