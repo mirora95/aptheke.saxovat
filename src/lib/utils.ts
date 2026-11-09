@@ -6,9 +6,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function getMedicinePrice(medicine: Pick<Medicine, 'price' | 'discountPrice'>): number {
-  return medicine.discountPrice ?? medicine.price;
-}
+export const getMedicinePrice = (medicine: Pick<Medicine, 'price' | 'discountPrice'>): number =>
+  medicine.discountPrice ?? medicine.price;
 
 export function formatPrice(price: number): string {
   return new Intl.NumberFormat('uz-UZ', {
