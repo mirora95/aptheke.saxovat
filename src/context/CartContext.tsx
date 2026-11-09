@@ -66,8 +66,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ? {
                 ...i,
                 quantity: nextQuantity,
-                unitPrice,
-                totalPrice: nextQuantity * unitPrice,
+                totalPrice: nextQuantity * i.unitPrice,
                 availableStock: medicine.stockQuantity,
                 isActive: medicine.isActive,
               }
