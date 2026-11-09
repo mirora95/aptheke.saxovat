@@ -1,8 +1,13 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import type { Medicine } from '../types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+export function getMedicinePrice(medicine: Pick<Medicine, 'price' | 'discountPrice'>): number {
+  return medicine.discountPrice ?? medicine.price;
 }
 
 export function formatPrice(price: number): string {

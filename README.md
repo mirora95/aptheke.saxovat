@@ -123,7 +123,7 @@ dotnet tool run dotnet-ef migrations add <MigrationName> --project src\Saxovat.I
 
 ## Tests
 
-Run the frontend API client tests (mocked requests; no backend or credentials needed):
+Run the frontend API client and effective-price tests (no backend or credentials needed):
 
 ```powershell
 npm test

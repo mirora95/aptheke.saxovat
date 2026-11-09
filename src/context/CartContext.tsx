@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 import { Medicine, OrderItem } from '../types';
+import { getMedicinePrice } from '../lib/utils';
 
 interface CartItem extends OrderItem {
   availableStock: number;
@@ -42,6 +43,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, message: 'Quantity must be at least 1.' };
     }
 
+    const unitPrice = getMedicinePrice(medicine);
     let result: CartActionResult = { success: true };
 
     setItems(prev => {
@@ -64,7 +66,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ? {
                 ...i,
                 quantity: nextQuantity,
-                totalPrice: nextQuantity * i.unitPrice,
+                unitPrice,
+                totalPrice: nextQuantity * unitPrice,
                 availableStock: medicine.stockQuantity,
                 isActive: medicine.isActive,
               }
@@ -77,8 +80,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           medicineId: medicine.id,
           medicineName: medicine.name,
           quantity: nextQuantity,
-          unitPrice: medicine.price,
-          totalPrice: medicine.price * nextQuantity,
+          unitPrice,
+          totalPrice: unitPrice * nextQuantity,
           imageUrl: medicine.imageUrl,
           availableStock: medicine.stockQuantity,
           isActive: medicine.isActive,
