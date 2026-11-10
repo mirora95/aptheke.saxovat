@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { categoryService, medicineService, orderService } from '../services';
 import { Category, Medicine, Order } from '../types';
-import { formatDate, formatPrice } from '../lib/utils';
+import { formatDate, formatPrice, getMedicinePrice } from '../lib/utils';
 import {
   ArrowLeft,
   ChevronRight,
@@ -148,7 +148,7 @@ const MedicineCard: React.FC<{ medicine: Medicine; onAddToCart: (medicine: Medic
           <p className="mt-3 text-xs text-gray-500 line-clamp-2">{getMedicineShortDescription(medicine)}</p>
           <div className="mt-auto pt-4 flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-bold text-blue-600">{formatPrice(medicine.price)}</p>
+              <p className="text-sm font-bold text-blue-600">{formatPrice(getMedicinePrice(medicine))}</p>
               <p className="text-[11px] text-gray-400">Manufacturer: {getMedicineManufacturer(medicine)}</p>
             </div>
             <Button
@@ -578,9 +578,9 @@ export const MedicineDetails: React.FC = () => {
             </div>
 
             <div className="flex items-center space-x-4">
-              <span className="text-3xl font-bold text-blue-600">{formatPrice(medicine.price)}</span>
-              {medicine.discountPrice ? (
-                <span className="text-lg text-gray-400 line-through">{formatPrice(medicine.discountPrice)}</span>
+              <span className="text-3xl font-bold text-blue-600">{formatPrice(getMedicinePrice(medicine))}</span>
+              {getMedicinePrice(medicine) < medicine.price ? (
+                <span className="text-lg text-gray-400 line-through">{formatPrice(medicine.price)}</span>
               ) : null}
             </div>
 
