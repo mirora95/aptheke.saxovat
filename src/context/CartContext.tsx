@@ -23,6 +23,7 @@ interface CartContextType {
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
+const isCartItemUnavailable = (item: CartItem) => !item.isActive || item.availableStock <= 0;
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
@@ -115,7 +116,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return prev;
       }
 
-      if (!existing.isActive || existing.availableStock <= 0) {
+      if (isCartItemUnavailable(existing)) {
         result = { success: false, message: 'This medicine is unavailable right now.' };
         return prev;
       }
