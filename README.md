@@ -129,6 +129,14 @@ Run the frontend API client and effective-price tests (no backend or credentials
 npm test
 ```
 
+Run the real React cart regression checks in a browser (normal and StrictMode, no backend needed):
+
+```powershell
+npm run dev
+```
+
+Open `http://localhost:3000/tests/cart.browser.html`. The page runs automatically and should report `10` passed and `0` failed. These browser checks are separate from `npm test`.
+
 Run backend tests:
 
 ```powershell

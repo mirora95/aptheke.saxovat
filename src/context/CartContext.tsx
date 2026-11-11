@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useRef, useState } from 'react';
 import { Medicine, OrderItem } from '../types';
 import { getMedicinePrice } from '../lib/utils';
 
@@ -23,9 +23,18 @@ interface CartContextType {
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
+const isCartItemUnavailable = (item: CartItem) => !item.isActive || item.availableStock <= 0;
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
+  const itemsRef = useRef<CartItem[]>([]);
+
+  // Compute event-time results before React renders any queued cart updates.
+  const updateItems = (update: (current: CartItem[]) => CartItem[]) => {
+    const next = update(itemsRef.current);
+    itemsRef.current = next;
+    setItems(next);
+  };
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
@@ -46,17 +55,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unitPrice = getMedicinePrice(medicine);
     let result: CartActionResult = { success: true };
 
-    setItems(prev => {
+    updateItems(prev => {
       const existing = prev.find(i => i.medicineId === medicine.id);
       const nextQuantity = Math.min((existing?.quantity ?? 0) + quantity, medicine.stockQuantity);
 
       if (existing && nextQuantity === existing.quantity) {
         result = { success: false, message: 'You already have the maximum available quantity in your cart.' };
-        return prev;
-      }
-
-      if (!existing && nextQuantity <= 0) {
-        result = { success: false, message: 'This medicine is out of stock.' };
         return prev;
       }
 
@@ -92,7 +96,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const removeItem = (medicineId: string) => {
-    setItems(prev => prev.filter(i => i.medicineId !== medicineId));
+    updateItems(prev => prev.filter(i => i.medicineId !== medicineId));
   };
 
   const updateQuantity = (medicineId: string, quantity: number): CartActionResult => {
@@ -103,15 +107,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     let result: CartActionResult = { success: true };
 
-    setItems(prev => {
-      const existing = prev.find(item => item.medicineId === medicineId);
+    updateItems(prev => {
+      const index = prev.findIndex(item => item.medicineId === medicineId);
+      const existing = prev[index];
 
       if (!existing) {
         result = { success: false, message: 'Cart item not found.' };
         return prev;
       }
 
-      if (!existing.isActive || existing.availableStock <= 0) {
+      if (isCartItemUnavailable(existing)) {
         result = { success: false, message: 'This medicine is unavailable right now.' };
         return prev;
       }
@@ -123,17 +128,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return prev;
       }
 
-      return prev.map(i =>
-        i.medicineId === medicineId
-          ? { ...i, quantity: nextQuantity, totalPrice: nextQuantity * i.unitPrice }
-          : i
-      );
+      const next = [...prev];
+      next[index] = { ...existing, quantity: nextQuantity, totalPrice: nextQuantity * existing.unitPrice };
+      return next;
     });
 
     return result;
   };
 
-  const clearCart = () => setItems([]);
+  const clearCart = () => updateItems(() => []);
 
   return (
     <CartContext.Provider
