@@ -63,11 +63,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return prev;
       }
 
-      if (!existing && nextQuantity <= 0) {
-        result = { success: false, message: 'This medicine is out of stock.' };
-        return prev;
-      }
-
       if (existing) {
         return prev.map(i =>
           i.medicineId === medicine.id
@@ -112,7 +107,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let result: CartActionResult = { success: true };
 
     updateItems(prev => {
-      const existing = prev.find(item => item.medicineId === medicineId);
+      const index = prev.findIndex(item => item.medicineId === medicineId);
+      const existing = prev[index];
 
       if (!existing) {
         result = { success: false, message: 'Cart item not found.' };
@@ -131,11 +127,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return prev;
       }
 
-      return prev.map(i =>
-        i.medicineId === medicineId
-          ? { ...i, quantity: nextQuantity, totalPrice: nextQuantity * i.unitPrice }
-          : i
-      );
+      const next = [...prev];
+      next[index] = { ...existing, quantity: nextQuantity, totalPrice: nextQuantity * existing.unitPrice };
+      return next;
     });
 
     return result;
