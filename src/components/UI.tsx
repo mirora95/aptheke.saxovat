@@ -58,11 +58,15 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: string;
 }
 
-export const Input: React.FC<InputProps> = ({ label, error, className, ...props }) => {
+export const Input: React.FC<InputProps> = ({ label, error, className, id, ...props }) => {
+  const generatedId = React.useId();
+  const inputId = id ?? generatedId;
+
   return (
     <div className="w-full space-y-1.5">
-      {label && <label className="text-sm font-medium text-gray-700">{label}</label>}
+      {label && <label htmlFor={inputId} className="text-sm font-medium text-gray-700">{label}</label>}
       <input
+        id={inputId}
         className={cn(
           'flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all',
           error && 'border-red-500 focus-visible:ring-red-500',
