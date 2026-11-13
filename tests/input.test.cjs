@@ -3,8 +3,8 @@ const { after, before, test } = require('node:test');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 
-let server;
-let Input;
+let server = null;
+let Input = null;
 
 before(async () => {
   const { createServer } = await import('vite');
