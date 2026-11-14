@@ -187,6 +187,8 @@ const CustomerCatalogContent: React.FC<{ title: string; description: string }> =
   }, [query]);
 
   useEffect(() => {
+    let mounted = true;
+
     const loadData = async () => {
       setLoading(true);
       setLoadError('');
@@ -197,6 +199,8 @@ const CustomerCatalogContent: React.FC<{ title: string; description: string }> =
           query ? medicineService.searchMedicines(query) : medicineService.getActiveMedicines(),
         ]);
 
+        if (!mounted) return;
+
         const safeCategories = normalizeCategoryList(loadedCategories);
         const safeMedicines = normalizeMedicineList(baseMedicines);
         const filteredMedicines = selectedCategoryId
@@ -206,15 +210,20 @@ const CustomerCatalogContent: React.FC<{ title: string; description: string }> =
         setCategories(safeCategories);
         setMedicines(filteredMedicines);
       } catch (err: any) {
+        if (!mounted) return;
+
         setCategories([]);
         setMedicines([]);
         setLoadError(err.message ?? 'Unable to load medicines right now.');
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
 
     loadData();
+
+    // Ignore responses from filters that are no longer displayed.
+    return () => { mounted = false; };
   }, [query, selectedCategoryId]);
 
   const selectedCategory = useMemo(
