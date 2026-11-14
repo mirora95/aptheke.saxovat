@@ -189,38 +189,32 @@ const CustomerCatalogContent: React.FC<{ title: string; description: string }> =
   useEffect(() => {
     let mounted = true;
 
-    const loadData = async () => {
-      setLoading(true);
-      setLoadError('');
+    setLoading(true);
+    setLoadError('');
 
-      try {
-        const [loadedCategories, baseMedicines] = await Promise.all([
-          categoryService.getCategories(),
-          query ? medicineService.searchMedicines(query) : medicineService.getActiveMedicines(),
-        ]);
+    Promise.all([
+      categoryService.getCategories(),
+      query ? medicineService.searchMedicines(query) : medicineService.getActiveMedicines(),
+    ]).then(([loadedCategories, baseMedicines]) => {
+      if (!mounted) return;
 
-        if (!mounted) return;
+      const safeCategories = normalizeCategoryList(loadedCategories);
+      const safeMedicines = normalizeMedicineList(baseMedicines);
+      const filteredMedicines = selectedCategoryId
+        ? safeMedicines.filter(medicine => medicine.categoryId === selectedCategoryId)
+        : safeMedicines;
 
-        const safeCategories = normalizeCategoryList(loadedCategories);
-        const safeMedicines = normalizeMedicineList(baseMedicines);
-        const filteredMedicines = selectedCategoryId
-          ? safeMedicines.filter(medicine => medicine.categoryId === selectedCategoryId)
-          : safeMedicines;
+      setCategories(safeCategories);
+      setMedicines(filteredMedicines);
+    }).catch((err: any) => {
+      if (!mounted) return;
 
-        setCategories(safeCategories);
-        setMedicines(filteredMedicines);
-      } catch (err: any) {
-        if (!mounted) return;
-
-        setCategories([]);
-        setMedicines([]);
-        setLoadError(err.message ?? 'Unable to load medicines right now.');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    loadData();
+      setCategories([]);
+      setMedicines([]);
+      setLoadError(err.message ?? 'Unable to load medicines right now.');
+    }).finally(() => {
+      if (mounted) setLoading(false);
+    });
 
     // Ignore responses from filters that are no longer displayed.
     return () => { mounted = false; };

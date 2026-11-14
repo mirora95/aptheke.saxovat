@@ -24,7 +24,7 @@ let navigate: ReturnType<typeof useNavigate> | null = null;
 const NavigationProbe = () => { navigate = useNavigate(); return null; };
 const text = () => rootElement.textContent ?? '';
 const expect = (condition: boolean, message: string) => { if (!condition) throw new Error(message); };
-const settle = async (callback: () => void) => { await act(async () => { callback(); }); };
+const settle = async (callback: () => void) => { await act(() => Promise.resolve(callback())); };
 const move = async (path: string) => { await settle(() => navigate?.(path)); };
 const finish = async (query: string, failed = false) => {
   const pending = requests.filter(request => request.query === query);
@@ -51,7 +51,7 @@ const run = async (name: string, strict: boolean, check: () => Promise<void>) =>
 };
 
 try {
-  categoryService.getCategories = async () => categories;
+  categoryService.getCategories = () => Promise.resolve(categories);
   medicineService.searchMedicines = query => new Promise((resolve, reject) => {
     requests.push({ query, resolve, reject });
   });
