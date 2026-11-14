@@ -19,7 +19,7 @@ const medicine = (name: string, categoryId = 'second') => ({
 } as Medicine);
 const originalCategories = categoryService.getCategories;
 const originalSearch = medicineService.searchMedicines;
-let requests: { query: string; resolve: (value: Medicine[]) => void; reject: (error: Error) => void }[] = [];
+let requests: { query: string; resolve: (value: Medicine[]) => void; reject: (error: unknown) => void }[] = [];
 let navigate: ReturnType<typeof useNavigate> | null = null;
 const NavigationProbe = () => { navigate = useNavigate(); return null; };
 const text = () => rootElement.textContent ?? '';
@@ -85,6 +85,13 @@ try {
       await finish('older');
       await finish('newer', true);
       expect(text().includes('newer request failed') && text().includes('Try Again'), 'Current request failure missing');
+    });
+    await run(`${mode}: unexpected current rejection shows a safe fallback`, strict, async () => {
+      await move('/category/second?q=newer');
+      const currentRequests = requests.filter(request => request.query === 'newer');
+      expect(currentRequests.length > 0, 'Current request missing');
+      await settle(() => currentRequests.forEach(request => request.reject(null)));
+      expect(text().includes('Unable to load medicines right now.') && text().includes('Try Again'), 'Safe error fallback missing');
     });
     await run(`${mode}: same-query category changes ignore previous category responses`, strict, async () => {
       const oldRequests = [...requests];

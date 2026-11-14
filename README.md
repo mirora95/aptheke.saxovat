@@ -137,7 +137,7 @@ npm run dev
 
 Open `http://localhost:3000/tests/cart.browser.html`. The page runs automatically and should report `10` passed and `0` failed. These browser checks are separate from `npm test`.
 
-Open `http://localhost:3000/tests/catalog.browser.html` to verify that late search/category responses cannot replace current results, errors, or loading state. It runs the real catalog with synthetic deferred service responses in normal and StrictMode; expect `12` passed and `0` failed. No backend is needed.
+Open `http://localhost:3000/tests/catalog.browser.html` to verify that late search/category responses cannot replace current results, errors, or loading state. It runs the real catalog with synthetic deferred service responses in normal and StrictMode; expect `14` passed and `0` failed. No backend is needed.
 
 Run backend tests:
 

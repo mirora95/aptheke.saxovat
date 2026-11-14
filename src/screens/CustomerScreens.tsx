@@ -206,12 +206,12 @@ const CustomerCatalogContent: React.FC<{ title: string; description: string }> =
 
       setCategories(safeCategories);
       setMedicines(filteredMedicines);
-    }).catch((err: any) => {
+    }).catch((err: unknown) => {
       if (!mounted) return;
 
       setCategories([]);
       setMedicines([]);
-      setLoadError(err.message ?? 'Unable to load medicines right now.');
+      setLoadError(err instanceof Error ? err.message : 'Unable to load medicines right now.');
     }).finally(() => {
       if (mounted) setLoading(false);
     });
