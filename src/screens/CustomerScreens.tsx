@@ -187,34 +187,37 @@ const CustomerCatalogContent: React.FC<{ title: string; description: string }> =
   }, [query]);
 
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      setLoadError('');
+    let mounted = true;
 
-      try {
-        const [loadedCategories, baseMedicines] = await Promise.all([
-          categoryService.getCategories(),
-          query ? medicineService.searchMedicines(query) : medicineService.getActiveMedicines(),
-        ]);
+    setLoading(true);
+    setLoadError('');
 
-        const safeCategories = normalizeCategoryList(loadedCategories);
-        const safeMedicines = normalizeMedicineList(baseMedicines);
-        const filteredMedicines = selectedCategoryId
-          ? safeMedicines.filter(medicine => medicine.categoryId === selectedCategoryId)
-          : safeMedicines;
+    Promise.all([
+      categoryService.getCategories(),
+      query ? medicineService.searchMedicines(query) : medicineService.getActiveMedicines(),
+    ]).then(([loadedCategories, baseMedicines]) => {
+      if (!mounted) return;
 
-        setCategories(safeCategories);
-        setMedicines(filteredMedicines);
-      } catch (err: any) {
-        setCategories([]);
-        setMedicines([]);
-        setLoadError(err.message ?? 'Unable to load medicines right now.');
-      } finally {
-        setLoading(false);
-      }
-    };
+      const safeCategories = normalizeCategoryList(loadedCategories);
+      const safeMedicines = normalizeMedicineList(baseMedicines);
+      const filteredMedicines = selectedCategoryId
+        ? safeMedicines.filter(medicine => medicine.categoryId === selectedCategoryId)
+        : safeMedicines;
 
-    loadData();
+      setCategories(safeCategories);
+      setMedicines(filteredMedicines);
+    }).catch((err: unknown) => {
+      if (!mounted) return;
+
+      setCategories([]);
+      setMedicines([]);
+      setLoadError(err instanceof Error ? err.message : 'Unable to load medicines right now.');
+    }).finally(() => {
+      if (mounted) setLoading(false);
+    });
+
+    // Ignore responses from filters that are no longer displayed.
+    return () => { mounted = false; };
   }, [query, selectedCategoryId]);
 
   const selectedCategory = useMemo(
