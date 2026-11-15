@@ -139,6 +139,8 @@ Open `http://localhost:3000/tests/cart.browser.html`. The page runs automaticall
 
 Open `http://localhost:3000/tests/catalog.browser.html` to verify that late search/category responses cannot replace current results, errors, or loading state. It runs the real catalog with synthetic deferred service responses in normal and StrictMode; expect `14` passed and `0` failed. No backend is needed.
 
+Open `http://localhost:3000/tests/checkout.browser.html` to verify that a delayed order confirmation removes only submitted quantities, preserving medicines and extra quantities added while checkout was pending. It uses the real checkout and cart with synthetic services in normal and StrictMode; expect `14` passed and `0` failed. No backend is needed. Failed or incomplete confirmations preserve the cart.
+
 Run backend tests:
 
 ```powershell

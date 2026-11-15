@@ -20,6 +20,7 @@ interface CartContextType {
   removeItem: (medicineId: string) => void;
   updateQuantity: (medicineId: string, quantity: number) => CartActionResult;
   clearCart: () => void;
+  removeOrderedItems: (orderedItems: OrderItem[]) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -138,6 +139,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearCart = () => updateItems(() => []);
 
+  const removeOrderedItems = (orderedItems: OrderItem[]) => updateItems(current => current.flatMap(item => {
+    const orderedQuantity = orderedItems.find(ordered => ordered.medicineId === item.medicineId)?.quantity ?? 0;
+    const quantity = Math.max(0, item.quantity - orderedQuantity);
+    return quantity > 0 ? [{ ...item, quantity, totalPrice: quantity * item.unitPrice }] : [];
+  }));
+
   return (
     <CartContext.Provider
       value={{
@@ -148,6 +155,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         removeItem,
         updateQuantity,
         clearCart,
+        removeOrderedItems,
       }}
     >
       {children}
