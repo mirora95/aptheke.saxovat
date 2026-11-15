@@ -50,10 +50,13 @@ const run = async (name: string, strict: boolean, check: () => Promise<void>) =>
   try {
     await settle(() => root.render(null));
     requests = [];
-    const app = <AuthProvider><CartProvider><Probe /><AuthGate><MemoryRouter initialEntries={['/checkout']}><Routes>
+    const routes = <Routes>
       <Route path="/checkout" element={<CheckoutScreen />} />
       <Route path="/cart" element={<CartScreen />} />
-    </Routes></MemoryRouter></AuthGate></CartProvider></AuthProvider>;
+    </Routes>;
+    const app = <AuthProvider><CartProvider><Probe /><AuthGate>
+      <MemoryRouter initialEntries={['/checkout']}>{routes}</MemoryRouter>
+    </AuthGate></CartProvider></AuthProvider>;
     await settle(() => root.render(strict ? <StrictMode>{app}</StrictMode> : app));
     await settle(() => { cart.addItem(medicine, 2); });
     await click('Place Order');
