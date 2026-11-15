@@ -750,7 +750,7 @@ export const CartScreen: React.FC = () => {
 
 export const CheckoutScreen: React.FC = () => {
   const { user } = useAuth();
-  const { items, subtotal, clearCart } = useCart();
+  const { items, subtotal, removeOrderedItems } = useCart();
   const [deliveryType, setDeliveryType] = useState<'Delivery' | 'Pickup'>('Delivery');
   const [paymentMethod, setPaymentMethod] = useState('Cash on Delivery');
   const [deliveryAddress, setDeliveryAddress] = useState(user?.address ?? '');
@@ -858,7 +858,7 @@ export const CheckoutScreen: React.FC = () => {
         throw new Error('Order confirmation data is incomplete.');
       }
 
-      clearCart();
+      removeOrderedItems(items);
       setCreatedOrder(order);
     } catch (err: any) {
       setError(err.message ?? 'Unable to place your order right now.');
