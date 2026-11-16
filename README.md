@@ -141,6 +141,8 @@ Open `http://localhost:3000/tests/catalog.browser.html` to verify that late sear
 
 Open `http://localhost:3000/tests/checkout.browser.html` to verify that a delayed order confirmation removes only submitted quantities, preserving medicines and extra quantities added while checkout was pending. It uses the real checkout and cart with synthetic services in normal and StrictMode; expect `14` passed and `0` failed. No backend is needed. Failed or incomplete confirmations preserve the cart.
 
+Open `http://localhost:3000/tests/order-details.browser.html` to verify navigation between order details while requests are pending. Late responses cannot replace the current order, error, not-found state, or loading indicator; ownership checks remain enforced and unexpected rejections show a safe fallback. It uses real React routing with synthetic services in normal and StrictMode; expect `20` passed and `0` failed. No backend is needed.
+
 Run backend tests:
 
 ```powershell
