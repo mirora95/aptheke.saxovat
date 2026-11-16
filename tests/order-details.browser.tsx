@@ -28,7 +28,7 @@ const order = (id: string, customerId = session.user.id): Order => ({
 const originalRestore = authService.restoreSession;
 const originalGet = orderService.getOrderById;
 const storedValues = [AUTH_SESSION_STORAGE_KEY, REFRESH_TOKEN_STORAGE_KEY].map(key => [key, localStorage.getItem(key)] as const);
-let requests: { id: string; resolve: (value: Order | undefined) => void; reject: (error: Error) => void }[] = [];
+let requests: { id: string; resolve: (value: Order | undefined) => void; reject: (error: unknown) => void }[] = [];
 let navigate: ReturnType<typeof useNavigate>;
 const NavigationProbe = () => { navigate = useNavigate(); return null; };
 const AuthGate = ({ children }: { children: React.ReactNode }) => useAuth().isLoading ? null : children;
@@ -112,6 +112,10 @@ try {
       expect(text().includes('Loading order...') && !text().includes('request failed'), 'Error was not reset for new route');
       await finish('newer');
       expect(text().includes('TEST-newer'), 'Recovery order missing');
+    });
+    await run(`${mode}: unexpected rejection shows a safe error fallback`, strict, async () => {
+      await settle(() => requests.forEach(request => request.reject(null)));
+      expect(text().includes('Unable to load this order right now.'), 'Safe error fallback missing');
     });
   }
 } finally {

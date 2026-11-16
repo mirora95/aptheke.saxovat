@@ -1085,11 +1085,11 @@ export const OrderDetailsScreen: React.FC = () => {
         if (!mounted) return;
 
         setOrder(foundOrder && foundOrder.customerId === user.id ? foundOrder : null);
-      }).catch((err: any) => {
+      }).catch((err: unknown) => {
         if (!mounted) return;
 
         setOrder(null);
-        setLoadError(err.message ?? 'Unable to load this order right now.');
+        setLoadError(err instanceof Error ? err.message : 'Unable to load this order right now.');
       }).finally(() => {
         if (mounted) setLoading(false);
       });
