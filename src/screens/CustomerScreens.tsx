@@ -1072,7 +1072,10 @@ export const OrderDetailsScreen: React.FC = () => {
   const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
+    let mounted = true;
+
     const loadOrder = async () => {
+      setLoading(true);
       setLoadError('');
 
       if (!user || !id) {
@@ -1083,16 +1086,22 @@ export const OrderDetailsScreen: React.FC = () => {
 
       try {
         const foundOrder = await orderService.getOrderById(id);
+        if (!mounted) return;
+
         setOrder(foundOrder && foundOrder.customerId === user.id ? foundOrder : null);
       } catch (err: any) {
+        if (!mounted) return;
+
         setOrder(null);
         setLoadError(err.message ?? 'Unable to load this order right now.');
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
 
     loadOrder();
+
+    return () => { mounted = false; };
   }, [id, user]);
 
   if (!user) {
