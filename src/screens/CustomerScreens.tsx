@@ -1074,16 +1074,16 @@ export const OrderDetailsScreen: React.FC = () => {
   useEffect(() => {
     let mounted = true;
 
+    setLoading(true);
+    setLoadError('');
+
+    if (!user || !id) {
+      setOrder(null);
+      setLoading(false);
+      return;
+    }
+
     const loadOrder = async () => {
-      setLoading(true);
-      setLoadError('');
-
-      if (!user || !id) {
-        setOrder(null);
-        setLoading(false);
-        return;
-      }
-
       try {
         const foundOrder = await orderService.getOrderById(id);
         if (!mounted) return;
