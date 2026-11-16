@@ -1080,26 +1080,20 @@ export const OrderDetailsScreen: React.FC = () => {
     if (!user || !id) {
       setOrder(null);
       setLoading(false);
-      return;
-    }
-
-    const loadOrder = async () => {
-      try {
-        const foundOrder = await orderService.getOrderById(id);
+    } else {
+      orderService.getOrderById(id).then(foundOrder => {
         if (!mounted) return;
 
         setOrder(foundOrder && foundOrder.customerId === user.id ? foundOrder : null);
-      } catch (err: any) {
+      }).catch((err: any) => {
         if (!mounted) return;
 
         setOrder(null);
         setLoadError(err.message ?? 'Unable to load this order right now.');
-      } finally {
+      }).finally(() => {
         if (mounted) setLoading(false);
-      }
-    };
-
-    loadOrder();
+      });
+    }
 
     return () => { mounted = false; };
   }, [id, user]);
